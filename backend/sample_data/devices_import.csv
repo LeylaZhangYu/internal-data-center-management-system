@@ -1,0 +1,3 @@
+asset_number,name,device_type,model,serial_number,purpose,status,ip_address,rack_id,start_u,u_height,cpu,memory_gb,gpu,storage_desc,operating_system,notes,ports
+SRV-CSV-001,CSV服务器01,server,Dell R740,SN-CSV-001,报表服务,active,10.0.1.11,1,8,2,2 x Xeon,128,,1TB SSD x2,Ubuntu 22.04,批量导入演示,"eth0|eth1"
+PDU-CSV-001,PDU设备01,pdu,APC AP8959,SN-PDU-001,机柜供电,active,10.0.1.21,2,30,1,,,,,,导入演示,"mgmt0"
