@@ -124,7 +124,7 @@ npm run dev
 |---|---|---:|
 | `db` | PostgreSQL | 5432 |
 | `backend` | FastAPI | 8000 |
-| `frontend` | Nginx 前端和 `/api/` 代理 | 8080 |
+| `frontend` | Nginx 前端和 `/api/` 代理 | 8081 |
 
 数据库保存在 Docker volume `postgres_data`。默认不写入模拟机房、机柜或设备数据。
 
@@ -156,7 +156,7 @@ openssl rand -hex 32
 ```dotenv
 POSTGRES_PORT=5432
 BACKEND_PORT=8000
-FRONTEND_PORT=8080
+FRONTEND_PORT=8081
 ```
 
 已有数据卷创建后，修改 `.env` 中的数据库密码不会自动改变数据库内部密码。
@@ -202,7 +202,7 @@ with SessionLocal() as db:
 
 ### 4. 访问
 
-- 前端：http://服务器IP:8080
+- 前端：http://服务器IP:8081
 - 健康检查：http://服务器IP:8000/health
 - OpenAPI：http://服务器IP:8000/docs
 
@@ -257,7 +257,7 @@ docker compose logs db
 docker compose logs backend
 ```
 
-- 8080 被占用：修改 `.env` 的 `FRONTEND_PORT` 后执行 `docker compose up -d`。
+- 8081 被占用：修改 `.env` 的 `FRONTEND_PORT` 后执行 `docker compose up -d`。
 - 前端改动未生效：`docker compose build --no-cache frontend && docker compose up -d frontend`。
 - 无法登录：确认已执行管理员初始化命令。
 - 数据库连接失败：确认 `db` healthy，且 `.env` 数据库名称、用户、密码一致。
@@ -326,7 +326,7 @@ nano .env
 ```dotenv
 POSTGRES_PASSWORD=生产数据库强密码
 SECRET_KEY=随机JWT密钥
-FRONTEND_PORT=8080
+FRONTEND_PORT=8081
 SEED_DEMO_DATA=false
 ```
 
@@ -342,16 +342,16 @@ curl http://127.0.0.1:8000/health
 然后执行前文“初始化管理员”的 Docker 命令，局域网访问：
 
 ```text
-http://虚拟机IP:8080
+http://虚拟机IP:8081
 ```
 
 ### 4. 防火墙和端口
 
-云安全组建议只开放 TCP 22 和前端端口 8080。启用 UFW：
+云安全组建议只开放 TCP 22 和前端端口 8081。启用 UFW：
 
 ```bash
 sudo ufw allow OpenSSH
-sudo ufw allow 8080/tcp
+sudo ufw allow 8081/tcp
 sudo ufw enable
 sudo ufw status
 ```
