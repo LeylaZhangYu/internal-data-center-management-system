@@ -53,6 +53,20 @@ def list_devices(
     return PagedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/export/{file_format}")
+def export_devices(file_format: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if file_format not in ("csv", "xlsx"):
+        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
+    return sheet_response(file_format, db.query(Device).options(joinedload(Device.administrators), joinedload(Device.ports)).order_by(Device.id).all())
+
+
+@router.get("/template/{file_format}")
+def download_template(file_format: str, current_user: User = Depends(get_current_user)):
+    if file_format not in ("csv", "xlsx"):
+        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
+    return sheet_response(file_format, template=True)
+
+
 @router.get("/{device_id}", response_model=DeviceRead)
 def get_device(device_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     device = serialize_device_query(db.query(Device)).filter(Device.id == device_id).first()
@@ -123,15 +137,3 @@ def import_device_file(
     return MessageResponse(message=message)
 
 
-@router.get("/export/{file_format}")
-def export_devices(file_format: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if file_format not in ("csv", "xlsx"):
-        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
-    return sheet_response(file_format, db.query(Device).order_by(Device.id).all())
-
-
-@router.get("/template/{file_format}")
-def download_template(file_format: str, current_user: User = Depends(get_current_user)):
-    if file_format not in ("csv", "xlsx"):
-        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
-    return sheet_response(file_format, template=True)

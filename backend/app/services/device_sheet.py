@@ -16,7 +16,7 @@ COLUMNS = [
     ("u_height", "占用U数"), ("cpu", "CPU"),
     ("memory_gb", "内存GB"), ("gpu", "GPU"),
     ("storage_desc", "硬盘"), ("operating_system", "操作系统"),
-    ("notes", "备注"),
+    ("notes", "备注"), ("administrator_ids", "管理员ID"), ("ports", "端口"),
 ]
 HEADER_FIELDS = {label: field for field, label in COLUMNS}
 HEADER_FIELDS.update({"管理员ID": "administrator_ids", "端口": "ports"})
@@ -26,8 +26,16 @@ def sheet_response(file_format, devices=(), template=False):
     headers = [label for _, label in COLUMNS]
     rows = []
     for device in devices:
-        values = [getattr(device, field) for field, _ in COLUMNS]
-        rows.append([getattr(value, "value", value) if value is not None else "" for value in values])
+        values = []
+        for field, _ in COLUMNS:
+            if field == "administrator_ids":
+                value = "|".join(str(item.id) for item in (getattr(device, "administrators", None) or []))
+            elif field == "ports":
+                value = "|".join(item.name for item in (getattr(device, "ports", None) or []))
+            else:
+                value = getattr(device, field)
+            values.append(getattr(value, "value", value) if value is not None else "")
+        rows.append(values)
     filename = "devices_template" if template else "devices"
     if file_format == "csv":
         output = io.StringIO()
