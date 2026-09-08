@@ -48,6 +48,9 @@
           <template #default="scope">{{ deviceTypeLabel(scope.row.device_type) }}</template>
         </el-table-column>
       <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip />
+      <el-table-column label="所属机房" width="160" show-overflow-tooltip>
+        <template #default="scope">{{ dataCenterName(scope.row) }}</template>
+      </el-table-column>
       <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip />
       <el-table-column label="安装位置" width="190">
         <template #default="scope">{{ formatInstallLocation(scope.row) }}</template>
@@ -78,6 +81,7 @@
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="资产编号" prop="asset_number" required><el-input v-model="form.asset_number" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备名称" prop="name" required><el-input v-model="form.name" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="机房" prop="data_center_id" required><el-select v-model="form.data_center_id" clearable style="width:100%" @change="onDataCenterChange"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备类型" prop="device_type" required><el-select v-model="form.device_type" style="width:100%"><el-option label="通用服务器 (server)" value="server" />
         <el-option label="GPU服务器 (gpu_server)" value="gpu_server" />
         <el-option label="CPU服务器 (cpu_server)" value="cpu_server" />
@@ -87,7 +91,7 @@
           <el-col :span="12"><el-form-item label="用途"><el-input v-model="form.purpose" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="IP地址"><el-input v-model="form.ip_address" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="机柜"><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in racks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="机柜"><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in filteredRacks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="起始U位" required><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="占用U数"><el-input-number v-model="form.u_height" :min="1" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="CPU"><el-input v-model="form.cpu" /></el-form-item></el-col>
@@ -157,6 +161,8 @@ const detailVisible = ref(false)
 const currentDetail = ref<any>(null)
 const movingId = ref<number | null>(null)
 const racks = ref<any[]>([])
+const datacenters = ref<any[]>([])
+const filteredRacks = computed(() => racks.value.filter((rack) => !form.data_center_id || rack.data_center_id === form.data_center_id))
 const administrators = ref<any[]>([])
 const filters = reactive<any>({ keyword: '', device_type: '', status: '' })
 const form = reactive<any>({})
@@ -168,10 +174,15 @@ const formRules = {
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
   device_type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
   model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
+  data_center_id: [{ required: true, message: '请选择机房', trigger: 'change' }],
 }
 
-const resetForm = () => Object.assign(form, { id: undefined, asset_number: '', name: '', device_type: 'server', model: '', serial_number: '', purpose: '', status: 'planned', ip_address: '', rack_id: undefined, start_u: undefined, u_height: 1, cpu: '', memory_gb: undefined, gpu: '', storage_desc: '', operating_system: '', notes: '', administrator_ids: [] })
+const resetForm = () => Object.assign(form, { id: undefined, data_center_id: undefined, asset_number: '', name: '', device_type: 'server', model: '', serial_number: '', purpose: '', status: 'planned', ip_address: '', rack_id: undefined, start_u: undefined, u_height: 1, cpu: '', memory_gb: undefined, gpu: '', storage_desc: '', operating_system: '', notes: '', administrator_ids: [] })
 const parsePorts = () => portsText.value.split(',').map((x) => x.trim()).filter(Boolean).map((name) => ({ name }))
+const dataCenterName = (device: any) => {
+  const rack = racks.value.find((item) => item.id === device?.rack_id)
+  return datacenters.value.find((item) => item.id === rack?.data_center_id)?.name || '未指定'
+}
 const rackCode = (rackId: number) => racks.value.find((rack) => rack.id === rackId)?.code || `机柜${rackId}`
 const formatInstallLocation = (device: any) => {
   if (!device?.rack_id || !device?.start_u) return '未上架'
@@ -179,12 +190,17 @@ const formatInstallLocation = (device: any) => {
   return `${rackCode(device.rack_id)} / U${device.start_u}–U${endU}`
 }
 
+const onDataCenterChange = () => {
+  if (!filteredRacks.value.some((rack) => rack.id === form.rack_id)) form.rack_id = undefined
+}
 const loadAux = async () => {
-  const [rackResult, adminResult] = await Promise.allSettled([
+  const [rackResult, dcResult, adminResult] = await Promise.allSettled([
     client.get('/racks', { params: { page: 1, page_size: 100 } }),
+    client.get('/datacenters'),
     client.get('/administrators'),
   ])
   if (rackResult.status === 'fulfilled') racks.value = rackResult.value.data.items || []
+  if (dcResult.status === 'fulfilled') datacenters.value = dcResult.value.data || []
   if (adminResult.status === 'fulfilled') administrators.value = adminResult.value.data || []
 }
 const load = async () => {
@@ -197,6 +213,7 @@ const openDialog = (row?: any) => {
   portsText.value = ''
   if (row) {
     Object.assign(form, row)
+    form.data_center_id = racks.value.find((rack) => rack.id === row.rack_id)?.data_center_id
     form.administrator_ids = (row.administrators || []).map((item:any) => item.id)
     portsText.value = (row.ports || []).map((p:any) => p.name).join(',')
   }
@@ -205,7 +222,8 @@ const openDialog = (row?: any) => {
 const save = async () => {
   try {
     await formRef.value?.validate()
-    const payload = { ...form, ports: parsePorts() }
+    const { data_center_id, ...deviceForm } = form
+    const payload = { ...deviceForm, ports: parsePorts() }
     if (form.id) await client.put(`/devices/${form.id}`, payload)
     else await client.post('/devices', payload)
     ElMessage.success('保存成功')
