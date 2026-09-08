@@ -22,7 +22,7 @@ The project is designed for departmental use: simple to deploy, easy to maintain
 - 机房管理：新增、编辑、查看、停用
 - 区域管理：新增、编辑、删除；区域下存在机柜时禁止删除
 - 机柜管理：新增、编辑、查看、停用、利用率统计、U 位查看
-- 设备管理：新增、编辑、查询、移动、下架、详情、导入导出
+- 设备管理：新增、编辑、查询、移动、下架、详情、导入导出；设备类型支持通用服务器、GPU服务器、CPU服务器、管理节点等
 - U 位校验：防止设备越界和 U 位重叠
 - 网络上联：端口、链路和拓扑信息管理
 - 首页概览：数量统计、状态分布、近期变更、异常提醒
@@ -463,3 +463,39 @@ PYTHONPATH=. python3 -m pytest -q
 - 正式环境应修改密码、限制端口并定期备份
 EOF
 wc -l README.md
+
+### 设备类型代码
+
+设备管理页面显示中文名称，接口、导入模板和数据库保存英文代码：
+
+| 页面名称 | 代码 |
+|---|---|
+| 通用服务器 | `server` |
+| GPU服务器 | `gpu_server` |
+| CPU服务器 | `cpu_server` |
+| 管理节点 | `management_node` |
+| 交换机 | `switch` |
+| 存储 | `storage` |
+| 配电单元 | `pdu` |
+| 防火墙 | `firewall` |
+| 其他 | `other` |
+
+如果使用的是已有 PostgreSQL 数据库，需要先扩展 PostgreSQL 枚举类型，再重启后端：
+
+```sql
+ALTER TYPE devicetypeenum ADD VALUE IF NOT EXISTS 'gpu_server';
+ALTER TYPE devicetypeenum ADD VALUE IF NOT EXISTS 'cpu_server';
+ALTER TYPE devicetypeenum ADD VALUE IF NOT EXISTS 'management_node';
+```
+
+不同 PostgreSQL/SQLAlchemy 版本生成的枚举类型名称可能不同。可先查询实际名称：
+
+```sql
+SELECT n.nspname AS schema_name, t.typname AS enum_name
+FROM pg_type t
+JOIN pg_enum e ON t.oid = e.enumtypid
+JOIN pg_namespace n ON n.oid = t.typnamespace
+WHERE e.enumlabel IN ('server', 'switch', 'storage');
+```
+
+将上面 SQL 中的 `devicetypeenum` 替换为查询到的 `enum_name`。全新数据库直接执行 `docker compose up -d --build` 即可。

@@ -68,7 +68,7 @@ def sheet_response(file_format, devices=(), template=False):
             for line in [
                 "请在第一个工作表从第2行开始填写，不要修改表头。模板不包含示例设备。",
                 "必填：资产编号、设备名称、设备类型、型号。资产编号不能与已有设备重复。",
-                "设备类型：server / switch / storage / pdu / firewall / other。",
+                "设备类型：server / gpu_server / cpu_server / management_node / switch / storage / pdu / firewall / other。",
                 "状态：planned / active / standby / maintenance / retired / off_shelf；留空为planned。",
                 "机柜ID填写系统内已有机柜的数字ID，不是机柜编号。未上架时机柜ID和起始U位留空。",
                 "上架时填写机柜ID、起始U位和占用U数；占用U数默认1，必须是正整数。",

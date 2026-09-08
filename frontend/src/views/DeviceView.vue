@@ -2,21 +2,24 @@
   <div class="page-card">
     <div class="toolbar">
       <el-input v-model="filters.keyword" placeholder="搜索资产编号/名称/IP/型号" style="width:240px" @keyup.enter="load" />
-      <el-select v-model="filters.device_type" clearable placeholder="设备类型" style="width:140px">
-        <el-option label="server" value="server" />
-        <el-option label="switch" value="switch" />
-        <el-option label="storage" value="storage" />
-        <el-option label="pdu" value="pdu" />
-        <el-option label="firewall" value="firewall" />
-        <el-option label="other" value="other" />
+      <el-select v-model="filters.device_type" clearable placeholder="设备类型" style="width:200px">
+        <el-option label="通用服务器 (server)" value="server" />
+        <el-option label="GPU服务器 (gpu_server)" value="gpu_server" />
+        <el-option label="CPU服务器 (cpu_server)" value="cpu_server" />
+        <el-option label="管理节点 (management_node)" value="management_node" />
+        <el-option label="交换机 (switch)" value="switch" />
+        <el-option label="存储 (storage)" value="storage" />
+        <el-option label="配电单元 (pdu)" value="pdu" />
+        <el-option label="防火墙 (firewall)" value="firewall" />
+        <el-option label="其他 (other)" value="other" />
       </el-select>
-      <el-select v-model="filters.status" clearable placeholder="状态" style="width:140px">
-        <el-option label="planned" value="planned" />
-        <el-option label="active" value="active" />
-        <el-option label="standby" value="standby" />
-        <el-option label="maintenance" value="maintenance" />
-        <el-option label="retired" value="retired" />
-        <el-option label="off_shelf" value="off_shelf" />
+      <el-select v-model="filters.status" clearable placeholder="状态" style="width:220px">
+        <el-option label="计划中 (planned)" value="planned" />
+        <el-option label="运行中 (active)" value="active" />
+        <el-option label="待机 (standby)" value="standby" />
+        <el-option label="维护中 (maintenance)" value="maintenance" />
+        <el-option label="已退役 (retired)" value="retired" />
+        <el-option label="已下架 (off_shelf)" value="off_shelf" />
       </el-select>
       <el-button @click="load">查询</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增设备</el-button>
@@ -41,14 +44,18 @@
     <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width: 1480px">
       <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip />
       <el-table-column prop="name" label="设备名称" width="160" show-overflow-tooltip />
-      <el-table-column prop="device_type" label="类型" width="100" />
+      <el-table-column prop="device_type" label="类型" width="190" show-overflow-tooltip>
+          <template #default="scope">{{ deviceTypeLabel(scope.row.device_type) }}</template>
+        </el-table-column>
       <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip />
       <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip />
       <el-table-column label="位置" width="140">
         <template #default="scope">{{ scope.row.rack_id ? `Rack ${scope.row.rack_id} / U${scope.row.start_u}` : '未上架' }}</template>
       </el-table-column>
       <el-table-column prop="u_height" label="占用U" width="90" />
-      <el-table-column prop="status" label="状态" width="110" />
+      <el-table-column prop="status" label="状态" width="190" show-overflow-tooltip>
+          <template #default="scope">{{ deviceStatusLabel(scope.row.status) }}</template>
+        </el-table-column>
       <el-table-column label="管理员" width="180" show-overflow-tooltip>
         <template #default="scope">{{ (scope.row.administrators || []).map((a:any) => a.name).join('、') }}</template>
       </el-table-column>
@@ -71,11 +78,14 @@
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="资产编号" prop="asset_number" required><el-input v-model="form.asset_number" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备名称" prop="name" required><el-input v-model="form.name" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="设备类型" prop="device_type" required><el-select v-model="form.device_type" style="width:100%"><el-option label="server" value="server" /><el-option label="switch" value="switch" /><el-option label="storage" value="storage" /><el-option label="pdu" value="pdu" /><el-option label="firewall" value="firewall" /><el-option label="other" value="other" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="设备类型" prop="device_type" required><el-select v-model="form.device_type" style="width:100%"><el-option label="通用服务器 (server)" value="server" />
+        <el-option label="GPU服务器 (gpu_server)" value="gpu_server" />
+        <el-option label="CPU服务器 (cpu_server)" value="cpu_server" />
+        <el-option label="管理节点 (management_node)" value="management_node" /><el-option label="交换机 (switch)" value="switch" /><el-option label="存储 (storage)" value="storage" /><el-option label="配电单元 (pdu)" value="pdu" /><el-option label="防火墙 (firewall)" value="firewall" /><el-option label="其他 (other)" value="other" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="型号" prop="model" required><el-input v-model="form.model" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="序列号"><el-input v-model="form.serial_number" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="用途"><el-input v-model="form.purpose" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="planned" value="planned" /><el-option label="active" value="active" /><el-option label="standby" value="standby" /><el-option label="maintenance" value="maintenance" /><el-option label="retired" value="retired" /><el-option label="off_shelf" value="off_shelf" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="IP地址"><el-input v-model="form.ip_address" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="机柜"><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in racks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="起始U位"><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
@@ -112,10 +122,10 @@
       <el-descriptions v-if="currentDetail" :column="2" border>
         <el-descriptions-item label="资产编号">{{ currentDetail.asset_number }}</el-descriptions-item>
         <el-descriptions-item label="名称">{{ currentDetail.name }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ currentDetail.device_type }}</el-descriptions-item>
+        <el-descriptions-item label="类型">{{ deviceTypeLabel(currentDetail.device_type) }}</el-descriptions-item>
         <el-descriptions-item label="型号">{{ currentDetail.model }}</el-descriptions-item>
         <el-descriptions-item label="IP地址">{{ currentDetail.ip_address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="状态">{{ currentDetail.status }}</el-descriptions-item>
+        <el-descriptions-item label="状态">{{ deviceStatusLabel(currentDetail.status) }}</el-descriptions-item>
         <el-descriptions-item label="位置">{{ currentDetail.rack_id ? `Rack ${currentDetail.rack_id} / U${currentDetail.start_u}` : '未上架' }}</el-descriptions-item>
         <el-descriptions-item label="管理员">{{ (currentDetail.administrators || []).map((a:any) => a.name).join('、') }}</el-descriptions-item>
         <el-descriptions-item label="端口" :span="2">{{ (currentDetail.ports || []).map((p:any) => p.name).join('、') }}</el-descriptions-item>
@@ -133,6 +143,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { deviceStatusLabel, deviceTypeLabel } from '../utils/labels'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')

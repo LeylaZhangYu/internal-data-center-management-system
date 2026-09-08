@@ -26,6 +26,9 @@ class RoleEnum(str, enum.Enum):
 
 class DeviceTypeEnum(str, enum.Enum):
     server = "server"
+    gpu_server = "gpu_server"
+    cpu_server = "cpu_server"
+    management_node = "management_node"
     switch = "switch"
     storage = "storage"
     pdu = "pdu"

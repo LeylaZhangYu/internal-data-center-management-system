@@ -37,6 +37,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive } from 'vue'
 import client from '../api/client'
+import { deviceStatusLabel } from '../utils/labels'
 
 const summary = reactive<any>({
   data_center_count: 0,
@@ -48,7 +49,7 @@ const summary = reactive<any>({
   alerts: [],
 })
 
-const distributionRows = computed(() => Object.entries(summary.device_status_distribution || {}).map(([label, value]) => ({ label, value })))
+const distributionRows = computed(() => Object.entries(summary.device_status_distribution || {}).map(([label, value]) => ({ label: deviceStatusLabel(label), value })))
 
 const load = async () => {
   const { data } = await client.get('/overview')

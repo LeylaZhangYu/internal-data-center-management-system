@@ -11,7 +11,9 @@
       <el-table-column prop="area_id" label="区域ID" width="100" />
       <el-table-column prop="row_position" label="行" width="80" />
       <el-table-column prop="column_position" label="列" width="80" />
-      <el-table-column prop="orientation" label="朝向" width="100" />
+      <el-table-column prop="orientation" label="朝向" width="190" show-overflow-tooltip>
+          <template #default="scope">{{ orientationLabel(scope.row.orientation) }}</template>
+        </el-table-column>
       <el-table-column prop="total_u" label="总U数" width="100" />
       <el-table-column label="状态" width="100">
         <template #default="scope">
@@ -45,7 +47,7 @@
           <div class="field-help">记录机柜在机房平面中的第几行、第几列，便于查找和管理。</div>
         </el-form-item>
 
-        <el-form-item label="朝向"><el-select v-model="form.orientation" style="width:100%"><el-option label="north" value="north" /><el-option label="south" value="south" /><el-option label="east" value="east" /><el-option label="west" value="west" /></el-select></el-form-item>
+        <el-form-item label="朝向"><el-select v-model="form.orientation" style="width:100%"><el-option label="北向 (north)" value="north" /><el-option label="南向 (south)" value="south" /><el-option label="东向 (east)" value="east" /><el-option label="西向 (west)" value="west" /></el-select></el-form-item>
         <el-form-item label="总U数"><el-input-number v-model="form.total_u" :min="1" /></el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>
       </el-form>
@@ -63,7 +65,7 @@
           <el-descriptions-item label="已占用U">{{ detail.utilization.occupied_u }}</el-descriptions-item>
           <el-descriptions-item label="剩余U">{{ detail.utilization.remaining_u }}</el-descriptions-item>
           <el-descriptions-item label="利用率">{{ detail.utilization.utilization_rate }}%</el-descriptions-item>
-          <el-descriptions-item label="朝向">{{ detail.orientation }}</el-descriptions-item>
+          <el-descriptions-item label="朝向">{{ orientationLabel(detail.orientation) }}</el-descriptions-item>
         </el-descriptions>
         <el-divider />
         <el-table :data="detail.occupancy" size="small">
@@ -83,6 +85,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
+import { orientationLabel } from '../utils/labels'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')

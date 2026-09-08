@@ -12,14 +12,14 @@
           <el-descriptions-item label="利用率">{{ selectedRack.utilization_rate }}%</el-descriptions-item>
           <el-descriptions-item label="设备数量">{{ selectedRack.device_count }}</el-descriptions-item>
           <el-descriptions-item label="总U数">{{ selectedRack.total_u }}U</el-descriptions-item>
-          <el-descriptions-item label="方向">{{ selectedRack.orientation }}</el-descriptions-item>
+          <el-descriptions-item label="方向">{{ orientationLabel(selectedRack.orientation) }}</el-descriptions-item>
         </el-descriptions>
         <el-divider content-position="left">设备清单</el-divider>
         <div v-if="selectedRack.devices?.length" class="device-list">
           <article v-for="item in selectedRack.devices" :key="item.id" class="device-item">
             <div class="device-head"><strong>{{ item.name }}</strong><el-tag size="small" effect="plain">U{{ item.start_u }}–{{ item.start_u + item.u_height - 1 }}</el-tag></div>
             <div class="device-meta">{{ item.asset_number }} · {{ item.model }}</div>
-            <div class="device-meta">IP：{{ item.ip_address || '-' }}　状态：{{ item.status }}</div>
+            <div class="device-meta">IP：{{ item.ip_address || '-' }}　状态：{{ deviceStatusLabel(item.status) }}</div>
             <div class="device-meta">管理员：{{ item.administrators?.join('、') || '-' }}</div>
             <div v-if="item.links?.length" class="device-links">上联：{{ item.links.join('；') }}</div>
           </article>
@@ -36,6 +36,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import client from '../api/client'
+import { deviceStatusLabel, orientationLabel } from '../utils/labels'
 
 const canvasRef = ref<HTMLDivElement | null>(null)
 const selectedRack = ref<any>(null)

@@ -15,15 +15,15 @@
         <el-menu-item index="/devices">设备管理</el-menu-item>
         <el-menu-item index="/network">网络上联</el-menu-item>
         <el-menu-item index="/visualization">3D可视化</el-menu-item>
-        <el-menu-item index="/administrators">管理员</el-menu-item>
+        <el-menu-item index="/administrators">服务器管理员</el-menu-item>
         <el-menu-item index="/logs">操作日志</el-menu-item>
       </el-menu>
     </el-aside>
     <el-container>
       <el-header class="app-header">
-        <div class="header-title"><span>控制台</span><small>部门内部数据中心管理系统</small></div>
+        <div class="header-title"><span>控制台</span><small>数据中心机房管理系统</small></div>
         <div style="display:flex; align-items:center; gap:16px">
-          <el-tag>{{ auth.user?.full_name }} / {{ auth.user?.role }}</el-tag>
+          <el-tag>{{ auth.user?.full_name }} / {{ roleLabel(auth.user?.role) }}</el-tag>
           <el-button type="danger" plain @click="logout">退出登录</el-button>
         </div>
       </el-header>
@@ -37,6 +37,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { roleLabel } from '../utils/labels'
 
 const auth = useAuthStore()
 const router = useRouter()
