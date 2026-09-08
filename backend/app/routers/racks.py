@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import or_
@@ -15,7 +15,7 @@ from app.services.rack import build_rack_occupancy, calculate_rack_utilization
 router = APIRouter(prefix="/racks", tags=["racks"])
 
 
-def auto_layout_coordinates(row_position: int, column_position: int) -> tuple[float, float]:
+def auto_layout_coordinates(row_position: int, column_position: int) -> Tuple[float, float]:
     # 3D 展示使用固定间距，用户只需维护行列位置。
     return (max(column_position - 1, 0) * 2.2, max(row_position - 1, 0) * 4.0)
 
