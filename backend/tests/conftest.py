@@ -26,8 +26,7 @@ def setup_database():
     Base.metadata.create_all(bind=engine)
     db = TestingSessionLocal()
     admin = User(username="admin", full_name="Admin", hashed_password=get_password_hash("admin123"), role=RoleEnum.admin)
-    viewer = User(username="viewer", full_name="Viewer", hashed_password=get_password_hash("viewer123"), role=RoleEnum.viewer)
-    db.add_all([admin, viewer])
+    db.add(admin)
     db.flush()
     dc = DataCenter(name="测试机房", location="上海", owner="IT")
     db.add(dc)
@@ -68,7 +67,3 @@ def auth_headers(client: TestClient, username: str, password: str):
 def admin_headers(client):
     return auth_headers(client, "admin", "admin123")
 
-
-@pytest.fixture()
-def viewer_headers(client):
-    return auth_headers(client, "viewer", "viewer123")

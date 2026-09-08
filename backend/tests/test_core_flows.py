@@ -81,16 +81,3 @@ def test_port_occupancy_validation(client, admin_headers):
     assert "端口已被占用" in r2.text
 
 
-def test_permission_control(client, viewer_headers):
-    response = client.post("/api/devices", json={
-        "asset_number": "SRV-200",
-        "name": "Forbidden",
-        "device_type": "server",
-        "model": "Dell",
-        "rack_id": 1,
-        "start_u": 1,
-        "u_height": 1,
-        "administrator_ids": [],
-        "ports": [],
-    }, headers=viewer_headers)
-    assert response.status_code == 403

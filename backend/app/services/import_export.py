@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.models.models import DeviceTypeEnum
 from app.schemas.common import DeviceCreate
 from app.services.device import create_device
+from app.services.device_sheet import HEADER_FIELDS
 
 
 def parse_upload(file: UploadFile) -> List[dict]:
@@ -21,6 +22,10 @@ def parse_upload(file: UploadFile) -> List[dict]:
         wb = load_workbook(io.BytesIO(content))
         ws = wb.active
         rows = list(ws.iter_rows(values_only=True))
+        if not rows:
+            wb.close()
+            return []
+        wb.close()
         headers = [str(x).strip() if x else "" for x in rows[0]]
         return [dict(zip(headers, row)) for row in rows[1:] if any(row)]
     raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
@@ -28,6 +33,11 @@ def parse_upload(file: UploadFile) -> List[dict]:
 
 
 def normalize_row(row: dict) -> DeviceCreate:
+    row = {HEADER_FIELDS.get(str(key).strip(), str(key).strip()): (value if value is not None else "")
+           for key, value in row.items()}
+    for field in ("asset_number", "name", "device_type", "model"):
+        if not str(row.get(field, "")).strip():
+            raise HTTPException(status_code=400, detail=f"必填项缺失: {field}")
     ports = []
     if row.get("ports"):
         for port_name in str(row.get("ports")).split("|"):

@@ -1,8 +1,6 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
-from fastapi.responses import StreamingResponse
-from openpyxl import Workbook
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -21,6 +19,7 @@ from app.schemas.common import (
 )
 from app.services.device import create_device, move_device, unmount_device, update_device
 from app.services.import_export import import_devices, parse_upload
+from app.services.device_sheet import sheet_response
 
 router = APIRouter(prefix="/devices", tags=["devices"])
 
@@ -124,32 +123,15 @@ def import_device_file(
     return MessageResponse(message=message)
 
 
-@router.get("/export/csv")
-def export_csv(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    import csv
-    import io
-
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["asset_number", "name", "device_type", "model", "serial_number", "purpose", "status", "ip_address", "rack_id", "start_u", "u_height", "cpu", "memory_gb", "gpu", "storage_desc", "operating_system", "notes"])
-    for d in db.query(Device).order_by(Device.id).all():
-        writer.writerow([d.asset_number, d.name, d.device_type.value, d.model, d.serial_number or "", d.purpose or "", d.status.value, d.ip_address or "", d.rack_id or "", d.start_u or "", d.u_height, d.cpu or "", d.memory_gb or "", d.gpu or "", d.storage_desc or "", d.operating_system or "", d.notes or ""])
-    output.seek(0)
-    return StreamingResponse(iter([output.getvalue()]), media_type="text/csv", headers={"Content-Disposition": "attachment; filename=devices.csv"})
+@router.get("/export/{file_format}")
+def export_devices(file_format: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    if file_format not in ("csv", "xlsx"):
+        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
+    return sheet_response(file_format, db.query(Device).order_by(Device.id).all())
 
 
-@router.get("/export/xlsx")
-def export_xlsx(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    import io
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "devices"
-    headers = ["asset_number", "name", "device_type", "model", "serial_number", "purpose", "status", "ip_address", "rack_id", "start_u", "u_height", "cpu", "memory_gb", "gpu", "storage_desc", "operating_system", "notes"]
-    ws.append(headers)
-    for d in db.query(Device).order_by(Device.id).all():
-        ws.append([d.asset_number, d.name, d.device_type.value, d.model, d.serial_number or "", d.purpose or "", d.status.value, d.ip_address or "", d.rack_id or "", d.start_u or "", d.u_height, d.cpu or "", d.memory_gb or "", d.gpu or "", d.storage_desc or "", d.operating_system or "", d.notes or ""])
-    stream = io.BytesIO()
-    wb.save(stream)
-    stream.seek(0)
-    return StreamingResponse(stream, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", headers={"Content-Disposition": "attachment; filename=devices.xlsx"})
+@router.get("/template/{file_format}")
+def download_template(file_format: str, current_user: User = Depends(get_current_user)):
+    if file_format not in ("csv", "xlsx"):
+        raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
+    return sheet_response(file_format, template=True)

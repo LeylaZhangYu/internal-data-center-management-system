@@ -23,9 +23,19 @@
       <el-upload :show-file-list="false" :before-upload="beforeUpload" accept=".csv,.xlsx" :disabled="!canEdit">
         <el-button :disabled="!canEdit">导入CSV/XLSX</el-button>
       </el-upload>
-      <el-button @click="download('/devices/export/csv', 'devices.csv')">导出CSV</el-button>
-      <el-button @click="download('/devices/export/xlsx', 'devices.xlsx')">导出XLSX</el-button>
+      <el-button @click="download('/devices/export/csv', '设备清单.csv')">导出CSV</el-button>
+      <el-button @click="download('/devices/export/xlsx', '设备清单.xlsx')">导出XLSX</el-button>
+      <el-dropdown @command="downloadTemplate">
+        <el-button>下载导入模板 ▾</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="xlsx">Excel 模板（含填写说明）</el-dropdown-item>
+            <el-dropdown-item command="csv">CSV 模板</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </div>
+    <p class="import-help">导入支持中英文表头。必填：资产编号、设备名称、设备类型、型号；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
 
     <div class="device-table-wrap">
     <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width: 1480px">
@@ -224,7 +234,9 @@ const beforeUpload = async (file: any) => {
   }
   return false
 }
+const downloadTemplate = (format: string) => download(`/devices/template/${format}`, `设备导入模板.${format}`)
 const download = async (url: string, filename: string) => {
+  try {
   const response = await client.get(url, { responseType: 'blob' })
   const blobUrl = window.URL.createObjectURL(response.data)
   const a = document.createElement('a')
@@ -232,6 +244,9 @@ const download = async (url: string, filename: string) => {
   a.download = filename
   a.click()
   window.URL.revokeObjectURL(blobUrl)
+  } catch {
+    ElMessage.error('下载失败，请检查登录状态或稍后重试')
+  }
 }
 
 onMounted(async () => {
@@ -242,5 +257,6 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.import-help { color: #64748b; font-size: 12px; margin: 0 0 16px; }
 .device-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden}.device-table{width:100%}.device-table :deep(.el-table__fixed-right){box-shadow:-6px 0 10px rgba(15,23,42,.08)}.device-table :deep(.el-table__fixed-right::before){background:#fff}.device-table :deep(.el-table__cell){white-space:nowrap}
 </style>
