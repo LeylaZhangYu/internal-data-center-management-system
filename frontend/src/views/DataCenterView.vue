@@ -40,9 +40,9 @@
 
     <el-dialog v-model="dcVisible" :title="dcForm.id ? '编辑机房' : '新增机房'" width="560px">
       <el-form :model="dcForm" label-width="90px">
-        <el-form-item label="名称"><el-input v-model="dcForm.name" /></el-form-item>
-        <el-form-item label="位置"><el-input v-model="dcForm.location" /></el-form-item>
-        <el-form-item label="负责人"><el-input v-model="dcForm.owner" /></el-form-item>
+        <el-form-item label="名称" required><el-input v-model="dcForm.name" /></el-form-item>
+        <el-form-item label="位置" required><el-input v-model="dcForm.location" /></el-form-item>
+        <el-form-item label="负责人" required><el-input v-model="dcForm.owner" /></el-form-item>
         <el-form-item label="联系方式"><el-input v-model="dcForm.contact" /></el-form-item>
         <el-form-item label="描述"><el-input v-model="dcForm.description" type="textarea" /></el-form-item>
       </el-form>
@@ -54,12 +54,12 @@
 
     <el-dialog v-model="areaVisible" :title="areaForm.id ? '编辑区域' : '新增区域'" width="560px">
       <el-form :model="areaForm" label-width="90px">
-        <el-form-item label="所属机房">
+        <el-form-item label="所属机房" required>
           <el-select v-model="areaForm.data_center_id" style="width:100%">
             <el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="区域名称"><el-input v-model="areaForm.name" /></el-form-item>
+        <el-form-item label="区域名称" required><el-input v-model="areaForm.name" /></el-form-item>
         <el-form-item label="行数"><el-input-number v-model="areaForm.row_count" :min="1" /></el-form-item>
         <el-form-item label="列数"><el-input-number v-model="areaForm.column_count" :min="1" /></el-form-item>
         <el-form-item label="说明"><el-input v-model="areaForm.description" type="textarea" /></el-form-item>

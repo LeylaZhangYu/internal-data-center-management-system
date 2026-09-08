@@ -34,9 +34,9 @@
 
     <el-dialog v-model="visible" :title="form.id ? '编辑机柜' : '新增机柜'" width="640px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="所属机房"><el-select v-model="form.data_center_id" style="width:100%"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="所属区域"><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="机柜编号"><el-input v-model="form.code" /></el-form-item>
+        <el-form-item label="所属机房" required><el-select v-model="form.data_center_id" style="width:100%"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="所属区域" required><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="机柜编号" required><el-input v-model="form.code" /></el-form-item>
         <el-form-item label="机柜行列">
           <el-space>
             <el-input-number v-model="form.row_position" :min="1" controls-position="right" />

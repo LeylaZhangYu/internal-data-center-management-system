@@ -6,10 +6,10 @@
       </template>
       <el-alert type="info" :closable="false" style="margin-bottom:16px" title="默认账号：admin / admin123" />
       <el-form :model="form" @submit.prevent="submit">
-        <el-form-item label="用户名">
+        <el-form-item label="用户名" required>
           <el-input v-model="form.username" />
         </el-form-item>
-        <el-form-item label="密码">
+        <el-form-item label="密码" required>
           <el-input v-model="form.password" type="password" show-password />
         </el-form-item>
         <el-button type="primary" style="width:100%" @click="submit" :loading="loading">登录</el-button>

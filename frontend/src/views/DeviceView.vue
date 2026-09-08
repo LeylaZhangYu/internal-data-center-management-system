@@ -49,8 +49,8 @@
         </el-table-column>
       <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip />
       <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip />
-      <el-table-column label="位置" width="140">
-        <template #default="scope">{{ scope.row.rack_id ? `Rack ${scope.row.rack_id} / U${scope.row.start_u}` : '未上架' }}</template>
+      <el-table-column label="安装位置" width="190">
+        <template #default="scope">{{ formatInstallLocation(scope.row) }}</template>
       </el-table-column>
       <el-table-column prop="u_height" label="占用U" width="90" />
       <el-table-column prop="status" label="状态" width="190" show-overflow-tooltip>
@@ -88,7 +88,7 @@
           <el-col :span="12"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="IP地址"><el-input v-model="form.ip_address" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="机柜"><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in racks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="起始U位"><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="起始U位" required><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="占用U数"><el-input-number v-model="form.u_height" :min="1" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="CPU"><el-input v-model="form.cpu" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="内存GB"><el-input-number v-model="form.memory_gb" :min="0" /></el-form-item></el-col>
@@ -108,8 +108,8 @@
 
     <el-dialog v-model="moveVisible" title="移动设备" width="420px">
       <el-form :model="moveForm" label-width="90px">
-        <el-form-item label="目标机柜"><el-select v-model="moveForm.rack_id" style="width:100%"><el-option v-for="item in racks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="起始U位"><el-input-number v-model="moveForm.start_u" :min="1" /></el-form-item>
+        <el-form-item label="目标机柜" required><el-select v-model="moveForm.rack_id" style="width:100%"><el-option v-for="item in racks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="起始U位" required><el-input-number v-model="moveForm.start_u" :min="1" /></el-form-item>
         <el-form-item label="说明"><el-input v-model="moveForm.comment" /></el-form-item>
       </el-form>
       <template #footer>
@@ -126,7 +126,7 @@
         <el-descriptions-item label="型号">{{ currentDetail.model }}</el-descriptions-item>
         <el-descriptions-item label="IP地址">{{ currentDetail.ip_address || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ deviceStatusLabel(currentDetail.status) }}</el-descriptions-item>
-        <el-descriptions-item label="位置">{{ currentDetail.rack_id ? `Rack ${currentDetail.rack_id} / U${currentDetail.start_u}` : '未上架' }}</el-descriptions-item>
+        <el-descriptions-item label="安装位置">{{ formatInstallLocation(currentDetail) }}</el-descriptions-item>
         <el-descriptions-item label="管理员">{{ (currentDetail.administrators || []).map((a:any) => a.name).join('、') }}</el-descriptions-item>
         <el-descriptions-item label="端口" :span="2">{{ (currentDetail.ports || []).map((p:any) => p.name).join('、') }}</el-descriptions-item>
         <el-descriptions-item label="CPU">{{ currentDetail.cpu || '-' }}</el-descriptions-item>
@@ -172,6 +172,13 @@ const formRules = {
 
 const resetForm = () => Object.assign(form, { id: undefined, asset_number: '', name: '', device_type: 'server', model: '', serial_number: '', purpose: '', status: 'planned', ip_address: '', rack_id: undefined, start_u: undefined, u_height: 1, cpu: '', memory_gb: undefined, gpu: '', storage_desc: '', operating_system: '', notes: '', administrator_ids: [] })
 const parsePorts = () => portsText.value.split(',').map((x) => x.trim()).filter(Boolean).map((name) => ({ name }))
+const rackCode = (rackId: number) => racks.value.find((rack) => rack.id === rackId)?.code || `机柜${rackId}`
+const formatInstallLocation = (device: any) => {
+  if (!device?.rack_id || !device?.start_u) return '未上架'
+  const endU = device.start_u + Math.max(Number(device.u_height || 1), 1) - 1
+  return `${rackCode(device.rack_id)} / U${device.start_u}–U${endU}`
+}
+
 const loadAux = async () => {
   const [rackResult, adminResult] = await Promise.allSettled([
     client.get('/racks', { params: { page: 1, page_size: 100 } }),

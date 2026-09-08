@@ -14,8 +14,8 @@
 
     <el-dialog v-model="visible" :title="form.id ? '编辑管理员' : '新增管理员'" width="560px">
       <el-form :model="form" label-width="90px">
-        <el-form-item label="姓名"><el-input v-model="form.name" /></el-form-item>
-        <el-form-item label="部门"><el-input v-model="form.department" /></el-form-item>
+        <el-form-item label="姓名" required><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="部门" required><el-input v-model="form.department" /></el-form-item>
         <el-form-item label="电话"><el-input v-model="form.phone" /></el-form-item>
         <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
       </el-form>

@@ -43,12 +43,12 @@
 
     <el-dialog v-model="visible" :title="form.id ? '编辑链路' : '新增链路'" width="560px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="本端端口">
+        <el-form-item label="本端端口" required>
           <el-select v-model="form.local_port_id" filterable style="width:100%">
             <el-option v-for="item in ports" :key="item.id" :label="`${item.device_name} / ${item.name}`" :value="item.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="对端端口">
+        <el-form-item label="对端端口" required>
           <el-select v-model="form.remote_port_id" filterable style="width:100%">
             <el-option v-for="item in ports" :key="item.id" :label="`${item.device_name} / ${item.name}`" :value="item.id" />
           </el-select>
