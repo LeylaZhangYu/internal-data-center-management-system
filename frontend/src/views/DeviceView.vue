@@ -27,18 +27,19 @@
       <el-button @click="download('/devices/export/xlsx', 'devices.xlsx')">导出XLSX</el-button>
     </div>
 
-    <el-table :data="rows">
-      <el-table-column prop="asset_number" label="资产编号" width="140" />
-      <el-table-column prop="name" label="设备名称" width="160" />
+    <div class="device-table-wrap">
+    <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width: 1480px">
+      <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip />
+      <el-table-column prop="name" label="设备名称" width="160" show-overflow-tooltip />
       <el-table-column prop="device_type" label="类型" width="100" />
-      <el-table-column prop="model" label="型号" width="140" />
-      <el-table-column prop="ip_address" label="IP" width="140" />
+      <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip />
+      <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip />
       <el-table-column label="位置" width="140">
         <template #default="scope">{{ scope.row.rack_id ? `Rack ${scope.row.rack_id} / U${scope.row.start_u}` : '未上架' }}</template>
       </el-table-column>
       <el-table-column prop="u_height" label="占用U" width="90" />
       <el-table-column prop="status" label="状态" width="110" />
-      <el-table-column label="管理员">
+      <el-table-column label="管理员" width="180" show-overflow-tooltip>
         <template #default="scope">{{ (scope.row.administrators || []).map((a:any) => a.name).join('、') }}</template>
       </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
@@ -50,6 +51,7 @@
         </template>
       </el-table-column>
     </el-table>
+    </div>
     <div style="margin-top:16px; display:flex; justify-content:flex-end">
       <el-pagination background layout="prev, pager, next, total" :total="total" v-model:current-page="page" :page-size="pageSize" @current-change="load" />
     </div>
@@ -238,3 +240,7 @@ onMounted(async () => {
   await load()
 })
 </script>
+
+<style scoped>
+.device-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden}.device-table{width:100%}.device-table :deep(.el-table__fixed-right){box-shadow:-6px 0 10px rgba(15,23,42,.08)}.device-table :deep(.el-table__fixed-right::before){background:#fff}.device-table :deep(.el-table__cell){white-space:nowrap}
+</style>
