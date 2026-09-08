@@ -116,6 +116,26 @@ npm run dev
 - 后端健康检查：http://localhost:8000/health
 - 后端文档：http://localhost:8000/docs
 
+## `.env` 配置提示
+
+项目根目录提供了 `.env.example` 配置模板。首次使用 Docker Compose 或在虚拟机部署时，先复制一份为 `.env`，再根据实际环境修改：
+
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+至少检查并设置以下内容：
+
+```dotenv
+POSTGRES_PASSWORD=数据库密码
+SECRET_KEY=随机JWT密钥
+FRONTEND_PORT=8081
+SEED_DEMO_DATA=false
+```
+
+`.env` 不要提交到 Git 或发送给他人，其中包含数据库密码和 JWT 密钥。
+
 ## Docker Compose 部署
 
 以下命令默认在项目根目录执行。Compose 包含：
