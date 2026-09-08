@@ -69,10 +69,35 @@ Y = (行 - 1) × 4.0
 
 ## 本地启动（SQLite）
 
+### 1. 创建并激活 Python 虚拟环境
+
+建议在项目根目录创建 `.venv`，将项目依赖与系统 Python 隔离：
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r backend/requirements.txt
+```
+
+说明：
+
+- `python3 -m venv .venv`：创建项目专用虚拟环境
+- `source .venv/bin/activate`：激活虚拟环境；终端前出现 `(.venv)` 表示已生效
+- `python -m pip install -r backend/requirements.txt`：在当前虚拟环境中安装后端依赖
+- 后续启动后端、初始化数据库和运行测试前，都请保持 `.venv` 已激活
+
+如果看到 `(.venv) (base)`，说明同时激活了虚拟环境和 Conda base。通常不影响使用，但建议退出 Conda base 后再操作：
+
+```bash
+conda deactivate
+source .venv/bin/activate
+```
+
+### 2. 初始化 SQLite 数据库
+
 ```bash
 cd backend
-python3 -m pip install -r requirements.txt
-PYTHONPATH=. python3 init_db.py
+PYTHONPATH=. python init_db.py
 ```
 
 `init_db.py` 默认只创建表，不创建用户、不写入业务模拟数据。创建管理员：
@@ -96,11 +121,15 @@ with SessionLocal() as db:
 '
 ```
 
-启动后端：
+### 3. 启动后端
+
+确保当前终端仍显示 `(.venv)`，并在 `backend` 目录执行：
 
 ```bash
-PYTHONPATH=. python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+PYTHONPATH=. python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
+
+### 4. 启动前端
 
 新开终端启动前端：
 
