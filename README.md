@@ -145,6 +145,8 @@ npm run dev
 - 后端健康检查：http://localhost:8000/health
 - 后端文档：http://localhost:8000/docs
 
+默认账号：admin / admin123
+
 ## `.env` 配置提示
 
 项目根目录提供了 `.env.example` 配置模板。首次使用 Docker Compose 或在虚拟机部署时，先复制一份为 `.env`，再根据实际环境修改：

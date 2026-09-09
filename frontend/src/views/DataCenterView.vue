@@ -36,7 +36,9 @@
       <el-table-column label="操作" width="220">
         <template #default="scope">
           <el-button size="small" @click="openDcDialog(scope.row)" :disabled="!canEdit">编辑</el-button>
-          <el-button size="small" type="danger" plain @click="deactivate(scope.row.id)" :disabled="!isAdmin">停用</el-button>
+          <el-button v-if="scope.row.is_active" size="small" type="warning" plain @click="deactivate(scope.row.id)" :disabled="!isAdmin">停用</el-button>
+          <el-button v-else size="small" type="success" plain @click="activate(scope.row.id)" :disabled="!isAdmin">启用</el-button>
+          <el-button size="small" type="danger" link @click="removeDc(scope.row)" :disabled="!isAdmin">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -137,6 +139,26 @@ const removeArea = async (row: any) => {
     await ElMessageBox.confirm(`确定删除区域“${row.name}”吗？删除后不可恢复。`, '删除确认', { type: 'warning' })
     await client.delete(`/datacenters/areas/${row.id}`)
     ElMessage.success('区域已删除')
+    await load()
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error?.response?.data?.detail || '删除失败')
+  }
+}
+const activate = async (id: number) => {
+  try {
+    await client.post(`/datacenters/${id}/activate`)
+    ElMessage.success('机房已启用')
+    await load()
+  } catch (error: any) {
+    ElMessage.error(error?.response?.data?.detail || '启用失败')
+  }
+}
+const removeDc = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定删除机房“${row.name}”吗？删除后不可恢复。`, '删除确认', { type: 'warning' })
+    await client.delete(`/datacenters/${row.id}`)
+    ElMessage.success('机房已删除')
     await load()
   } catch (error: any) {
     if (error === 'cancel' || error === 'close') return

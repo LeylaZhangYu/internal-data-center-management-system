@@ -73,6 +73,41 @@ def deactivate_datacenter(
     return MessageResponse(message="机房已停用")
 
 
+@router.post("/{datacenter_id}/activate", response_model=MessageResponse)
+def activate_datacenter(
+    datacenter_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    dc = db.query(DataCenter).filter(DataCenter.id == datacenter_id).first()
+    if not dc:
+        raise HTTPException(status_code=404, detail="机房不存在")
+    dc.is_active = True
+    log_action(db, user=current_user, action="activate", module="datacenter", target_type="datacenter", target_id=str(datacenter_id), message=f"启用机房 {dc.name}")
+    db.commit()
+    return MessageResponse(message="机房已启用")
+
+
+@router.delete("/{datacenter_id}", response_model=MessageResponse)
+def delete_datacenter(
+    datacenter_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    dc = db.query(DataCenter).filter(DataCenter.id == datacenter_id).first()
+    if not dc:
+        raise HTTPException(status_code=404, detail="机房不存在")
+    if db.query(Area).filter(Area.data_center_id == datacenter_id).first():
+        raise HTTPException(status_code=409, detail="机房下存在区域，无法删除，请先删除区域")
+    if db.query(Rack).filter(Rack.data_center_id == datacenter_id).first():
+        raise HTTPException(status_code=409, detail="机房下存在机柜，无法删除，请先移除机柜")
+    name = dc.name
+    db.delete(dc)
+    log_action(db, user=current_user, action="delete", module="datacenter", target_type="datacenter", target_id=str(datacenter_id), message=f"删除机房 {name}")
+    db.commit()
+    return MessageResponse(message="机房已删除")
+
+
 @router.post("/{datacenter_id}/areas", response_model=AreaRead)
 def create_area(
     datacenter_id: int,
