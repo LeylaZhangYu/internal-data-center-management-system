@@ -92,10 +92,10 @@
         <el-option label="管理节点 (management_node)" value="management_node" /><el-option label="交换机 (switch)" value="switch" /><el-option label="存储 (storage)" value="storage" /><el-option label="配电单元 (pdu)" value="pdu" /><el-option label="防火墙 (firewall)" value="firewall" /><el-option label="其他 (other)" value="other" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="型号" prop="model" required><el-input v-model="form.model" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="序列号"><el-input v-model="form.serial_number" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="用途"><el-input v-model="form.purpose" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="状态"><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="IP地址"><el-input v-model="form.ip_address" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="机柜"><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in filteredRacks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="用途" prop="purpose" required><el-input v-model="form.purpose" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="状态" prop="status" required><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="IP地址" prop="ip_address" required><el-input v-model="form.ip_address" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="机柜" prop="rack_id" required><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in filteredRacks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="起始U位" required><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="占用U数"><el-input-number v-model="form.u_height" :min="1" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="CPU"><el-input v-model="form.cpu" /></el-form-item></el-col>
@@ -103,7 +103,7 @@
           <el-col :span="12"><el-form-item label="GPU"><el-input v-model="form.gpu" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="硬盘"><el-input v-model="form.storage_desc" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="操作系统"><el-input v-model="form.operating_system" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="管理员"><el-select v-model="form.administrator_ids" multiple style="width:100%"><el-option v-for="item in administrators" :key="item.id" :label="`${item.name}(${item.department})`" :value="item.id" /></el-select></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="管理员" prop="administrator_ids" required><el-select v-model="form.administrator_ids" multiple style="width:100%"><el-option v-for="item in administrators" :key="item.id" :label="`${item.name}(${item.department})`" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="端口"><el-input v-model="portsText" placeholder="使用英文逗号分隔，如 eth0,eth1" /></el-form-item></el-col>
           <el-col :span="24"><el-form-item label="备注"><el-input v-model="form.notes" type="textarea" /></el-form-item></el-col>
         </el-row>
@@ -178,6 +178,11 @@ const formRules = {
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
   device_type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
   model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
+  purpose: [{ required: true, message: '请输入用途', trigger: 'blur' }],
+  status: [{ required: true, message: '请选择状态', trigger: 'change' }],
+  ip_address: [{ required: true, message: '请输入IP地址', trigger: 'blur' }],
+  rack_id: [{ required: true, message: '请选择机柜', trigger: 'change' }],
+  administrator_ids: [{ type: 'array', required: true, min: 1, message: '请选择至少一名管理员', trigger: 'change' }],
   data_center_id: [{ required: true, message: '请选择机房', trigger: 'change' }],
 }
 

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import require_roles
-from app.models.models import Area, DataCenter, Rack, User
+from app.models.models import Area, DataCenter, Device, DevicePort, NetworkLink, Rack, User
 from app.schemas.common import (
     AreaCreate,
     AreaRead,
@@ -97,10 +97,21 @@ def delete_datacenter(
     dc = db.query(DataCenter).filter(DataCenter.id == datacenter_id).first()
     if not dc:
         raise HTTPException(status_code=404, detail="机房不存在")
-    if db.query(Area).filter(Area.data_center_id == datacenter_id).first():
-        raise HTTPException(status_code=409, detail="机房下存在区域，无法删除，请先删除区域")
-    if db.query(Rack).filter(Rack.data_center_id == datacenter_id).first():
-        raise HTTPException(status_code=409, detail="机房下存在机柜，无法删除，请先移除机柜")
+    areas = db.query(Area).filter(Area.data_center_id == datacenter_id).all()
+    racks = db.query(Rack).filter(Rack.data_center_id == datacenter_id).all()
+    rack_ids = [rack.id for rack in racks]
+    devices = db.query(Device).filter(Device.rack_id.in_(rack_ids)).all() if rack_ids else []
+    device_ids = [device.id for device in devices]
+    port_ids = [port.id for port in db.query(DevicePort).filter(DevicePort.device_id.in_(device_ids)).all()] if device_ids else []
+    if port_ids:
+        db.query(NetworkLink).filter((NetworkLink.local_port_id.in_(port_ids)) | (NetworkLink.remote_port_id.in_(port_ids))).delete(synchronize_session=False)
+    for device in devices:
+        device.administrators = []
+        db.delete(device)
+    for rack in racks:
+        db.delete(rack)
+    for area in areas:
+        db.delete(area)
     name = dc.name
     db.delete(dc)
     log_action(db, user=current_user, action="delete", module="datacenter", target_type="datacenter", target_id=str(datacenter_id), message=f"删除机房 {name}")

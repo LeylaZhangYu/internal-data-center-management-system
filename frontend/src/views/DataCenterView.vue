@@ -156,7 +156,7 @@ const activate = async (id: number) => {
 }
 const removeDc = async (row: any) => {
   try {
-    await ElMessageBox.confirm(`确定删除机房“${row.name}”吗？删除后不可恢复。`, '删除确认', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除机房“${row.name}”吗？该机房下的区域、机柜和设备也会一并删除，且不可恢复。`, '删除确认', { type: 'warning' })
     await client.delete(`/datacenters/${row.id}`)
     ElMessage.success('机房已删除')
     await load()

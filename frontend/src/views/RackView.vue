@@ -5,26 +5,28 @@
       <el-button @click="load">查询</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增机柜</el-button>
     </div>
-    <el-table :data="rows" @row-click="showDetail">
-      <el-table-column prop="code" label="机柜编号" />
-      <el-table-column prop="data_center_id" label="机房ID" width="100" />
-      <el-table-column prop="area_id" label="区域ID" width="100" />
-      <el-table-column prop="row_position" label="行" width="80" />
-      <el-table-column prop="column_position" label="列" width="80" />
-      <el-table-column prop="orientation" label="朝向" width="190" show-overflow-tooltip>
+    <el-table class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
+      <el-table-column prop="code" label="机柜编号" show-overflow-tooltip />
+      <el-table-column prop="data_center_id" label="机房ID" />
+      <el-table-column prop="area_id" label="区域ID" />
+      <el-table-column prop="row_position" label="行" />
+      <el-table-column prop="column_position" label="列" />
+      <el-table-column prop="orientation" label="朝向" show-overflow-tooltip>
           <template #default="scope">{{ orientationLabel(scope.row.orientation) }}</template>
         </el-table-column>
-      <el-table-column prop="total_u" label="总U数" width="100" />
-      <el-table-column label="状态" width="100">
+      <el-table-column prop="total_u" label="总U数" />
+      <el-table-column label="状态">
         <template #default="scope">
           <el-tag :type="scope.row.is_active ? 'success' : 'info'">{{ scope.row.is_active ? '启用' : '停用' }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="220">
+      <el-table-column label="操作" width="300" fixed="right">
         <template #default="scope">
           <el-button size="small" @click.stop="showDetail(scope.row)">详情</el-button>
           <el-button size="small" @click.stop="openDialog(scope.row)" :disabled="!canEdit">编辑</el-button>
-          <el-button size="small" type="warning" plain @click.stop="deactivate(scope.row.id)" :disabled="!canEdit">停用</el-button>
+          <el-button v-if="scope.row.is_active" size="small" type="warning" plain @click.stop="deactivate(scope.row.id)" :disabled="!canEdit">停用</el-button>
+          <el-button v-else size="small" type="success" plain @click.stop="activate(scope.row.id)" :disabled="!canEdit">启用</el-button>
+          <el-button size="small" type="danger" link @click.stop="removeRack(scope.row)" :disabled="!canEdit">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -82,7 +84,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { orientationLabel } from '../utils/labels'
@@ -137,6 +139,24 @@ const showDetail = async (row: any) => {
   detail.value = data
   detailVisible.value = true
 }
+const activate = async (id: number) => {
+  try {
+    await client.post(`/racks/${id}/activate`)
+    ElMessage.success('机柜已启用')
+    await load()
+  } catch (error: any) { ElMessage.error(error?.response?.data?.detail || '启用失败') }
+}
+const removeRack = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定删除机柜“${row.code}”吗？机柜下的服务器和设备也会一并删除，且不可恢复。`, '删除确认', { type: 'warning' })
+    await client.delete(`/racks/${row.id}`)
+    ElMessage.success('机柜已删除')
+    await load()
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return
+    ElMessage.error(error?.response?.data?.detail || '删除失败')
+  }
+}
 const deactivate = async (id: number) => {
   await client.post(`/racks/${id}/deactivate`)
   ElMessage.success('已停用')
@@ -152,4 +172,5 @@ onMounted(async () => {
 
 <style scoped>
 .field-help{width:100%;margin-top:4px;color:#64748b;font-size:12px;line-height:1.5}.field-unit{color:#64748b;font-size:12px;white-space:nowrap}
+.rack-table :deep(.el-table__cell){padding:10px 8px;white-space:nowrap}.rack-table :deep(.el-table__header th){background:#f5f8fc!important;color:#475569;font-weight:600}.rack-table :deep(.el-table__fixed-right){box-shadow:-5px 0 10px rgba(15,23,42,.06);background:#fff}.rack-table :deep(.el-table__fixed-right .el-table__cell){background:#fff!important}.rack-table :deep(.el-table__row:hover>td){background:#eff6ff!important}@media(max-width:900px){.rack-table{min-width:980px}}
 </style>

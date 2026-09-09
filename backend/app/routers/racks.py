@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import require_roles
-from app.models.models import Rack, User
+from app.models.models import Device, DevicePort, NetworkLink, Rack, User
 from app.schemas.common import MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate
 from app.services.audit import log_action
 from app.services.rack import build_rack_occupancy, calculate_rack_utilization
@@ -99,3 +99,42 @@ def deactivate_rack(
     log_action(db, user=current_user, action="deactivate", module="rack", target_type="rack", target_id=str(rack.id), message=f"停用机柜 {rack.code}")
     db.commit()
     return MessageResponse(message="机柜已停用")
+
+
+@router.post("/{rack_id}/activate", response_model=MessageResponse)
+def activate_rack(
+    rack_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    rack = db.query(Rack).filter(Rack.id == rack_id).first()
+    if not rack:
+        raise HTTPException(status_code=404, detail="机柜不存在")
+    rack.is_active = True
+    log_action(db, user=current_user, action="activate", module="rack", target_type="rack", target_id=str(rack_id), message=f"启用机柜 {rack.code}")
+    db.commit()
+    return MessageResponse(message="机柜已启用")
+
+
+@router.delete("/{rack_id}", response_model=MessageResponse)
+def delete_rack(
+    rack_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    rack = db.query(Rack).filter(Rack.id == rack_id).first()
+    if not rack:
+        raise HTTPException(status_code=404, detail="机柜不存在")
+    devices = db.query(Device).filter(Device.rack_id == rack_id).all()
+    device_ids = [device.id for device in devices]
+    port_ids = [port.id for port in db.query(DevicePort).filter(DevicePort.device_id.in_(device_ids)).all()] if device_ids else []
+    if port_ids:
+        db.query(NetworkLink).filter((NetworkLink.local_port_id.in_(port_ids)) | (NetworkLink.remote_port_id.in_(port_ids))).delete(synchronize_session=False)
+    for device in devices:
+        device.administrators = []
+        db.delete(device)
+    code = rack.code
+    db.delete(rack)
+    log_action(db, user=current_user, action="delete", module="rack", target_type="rack", target_id=str(rack_id), message=f"删除机柜 {code}")
+    db.commit()
+    return MessageResponse(message="机柜已删除")
