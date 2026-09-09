@@ -40,8 +40,9 @@
     </div>
     <p class="import-help">导入支持中英文表头。必填：资产编号、设备名称、设备类型、型号；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
 
-    <div class="device-table-wrap">
-    <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width: 1480px">
+    <div class="device-table-layout">
+      <div class="device-info-scroll">
+    <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width:1350px">
       <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip />
       <el-table-column prop="name" label="设备名称" width="160" show-overflow-tooltip />
       <el-table-column prop="device_type" label="类型" width="190" show-overflow-tooltip>
@@ -62,15 +63,18 @@
       <el-table-column label="管理员" width="180" show-overflow-tooltip>
         <template #default="scope">{{ (scope.row.administrators || []).map((a:any) => a.name).join('、') }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
-        <template #default="scope">
-          <el-button size="small" @click="openDialog(scope.row)" :disabled="!canEdit">编辑</el-button>
-          <el-button size="small" type="primary" plain @click="openMove(scope.row)" :disabled="!canEdit">移动</el-button>
-          <el-button size="small" type="warning" plain @click="unmount(scope.row)" :disabled="!canEdit || scope.row.status === 'off_shelf'">下架</el-button>
-          <el-button size="small" @click="openDetail(scope.row)">详情</el-button>
-        </template>
-      </el-table-column>
     </el-table>
+      </div>
+      <el-table class="device-actions-table" :data="rows" table-layout="fixed">
+        <el-table-column label="操作" width="280">
+          <template #default="scope">
+            <el-button size="small" @click="openDialog(scope.row)" :disabled="!canEdit">编辑</el-button>
+            <el-button size="small" type="primary" plain @click="openMove(scope.row)" :disabled="!canEdit">移动</el-button>
+            <el-button size="small" type="warning" plain @click="unmount(scope.row)" :disabled="!canEdit || scope.row.status === 'off_shelf'">下架</el-button>
+            <el-button size="small" @click="openDetail(scope.row)">详情</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </div>
     <div style="margin-top:16px; display:flex; justify-content:flex-end">
       <el-pagination background layout="prev, pager, next, total" :total="total" v-model:current-page="page" :page-size="pageSize" @current-change="load" />
@@ -294,5 +298,5 @@ onMounted(async () => {
 
 <style scoped>
 .import-help { color: #64748b; font-size: 12px; margin: 0 0 16px; }
-.device-table-wrap{width:100%;overflow-x:auto;overflow-y:hidden}.device-table{width:100%}.device-table :deep(.el-table__fixed-right){box-shadow:-6px 0 10px rgba(15,23,42,.08)}.device-table :deep(.el-table__fixed-right::before){background:#fff}.device-table :deep(.el-table__cell){white-space:nowrap}
+.device-table-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:start}.device-info-scroll{min-width:0;overflow-x:auto}.device-table{width:100%}.device-actions-table{width:280px}.device-actions-table :deep(.el-table__cell){white-space:nowrap}.device-actions-table :deep(.el-table__header th),.device-actions-table :deep(.el-table__body td){background:#fff!important}.device-actions-table :deep(.el-table__row:hover>td){background:#f0f7ff!important}.device-table :deep(.el-table__cell){white-space:nowrap}
 </style>

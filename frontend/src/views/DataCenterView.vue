@@ -4,27 +4,30 @@
       <el-button type="primary" @click="openDcDialog()" :disabled="!canEdit">新增机房</el-button>
       <el-button @click="openAreaDialog()" :disabled="!canEdit || !datacenters.length">新增区域</el-button>
     </div>
-    <el-table :data="datacenters" row-key="id" default-expand-all>
+    <el-table class="datacenter-table" :data="datacenters" row-key="id" default-expand-all table-layout="fixed">
       <el-table-column type="expand">
         <template #default="scope">
-          <el-table :data="scope.row.areas || []" size="small">
-            <el-table-column prop="name" label="区域" />
+          <div class="area-panel">
+            <div class="area-panel-title"><span>区域列表</span><small>{{ (scope.row.areas || []).length }} 个区域</small></div>
+          <el-table class="area-table" :data="scope.row.areas || []" size="small" table-layout="fixed">
+            <el-table-column prop="name" label="区域" width="150" show-overflow-tooltip />
             <el-table-column prop="row_count" label="行数" width="100" />
             <el-table-column prop="column_count" label="列数" width="100" />
-            <el-table-column prop="description" label="说明" />
-            <el-table-column label="操作" width="150" fixed="right">
+            <el-table-column prop="description" label="说明" width="260" show-overflow-tooltip />
+            <el-table-column label="操作" width="180" fixed="right" align="left">
               <template #default="areaScope">
                 <el-button size="small" @click="openAreaDialog(areaScope.row, scope.row.id)" :disabled="!canEdit">编辑</el-button>
                 <el-button size="small" type="danger" link @click="removeArea(areaScope.row)" :disabled="!canEdit">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column prop="name" label="机房名称" />
-      <el-table-column prop="location" label="位置" />
-      <el-table-column prop="owner" label="负责人" />
-      <el-table-column prop="contact" label="联系信息" />
+      <el-table-column prop="name" label="机房名称" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="location" label="位置" min-width="220" show-overflow-tooltip />
+      <el-table-column prop="owner" label="负责人" min-width="140" />
+      <el-table-column prop="contact" label="联系信息" min-width="180" show-overflow-tooltip />
       <el-table-column label="状态" width="100">
         <template #default="scope">
           <el-tag :type="scope.row.is_active ? 'success' : 'info'">{{ scope.row.is_active ? '启用' : '停用' }}</el-tag>
@@ -148,3 +151,44 @@ const deactivate = async (id: number) => {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.datacenter-table :deep(.el-table__expanded-cell) {
+  padding: 0 18px 10px 74px;
+  background: #f7faff;
+}
+.area-panel {
+  border-left: 2px solid #a7c5df;
+  padding: 8px 0 0 14px;
+}
+.area-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: #294d70;
+  font-size: 12px;
+  font-weight: 600;
+}
+.area-panel-title small {
+  color: #8aa0b5;
+  font-size: 11px;
+  font-weight: 400;
+}
+.area-table {
+  border: 1px solid #dfe9f3;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.area-table :deep(.el-table__header th) {
+  padding: 5px 0;
+  background: #edf5fc !important;
+  color: #58738d;
+}
+.area-table :deep(.el-table__cell) {
+  padding: 5px 0;
+}
+.area-table :deep(.el-table__row:hover > td) {
+  background: #f0f7ff !important;
+}
+</style>
