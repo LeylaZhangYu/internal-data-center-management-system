@@ -208,7 +208,7 @@ BACKEND_PORT=8000
 FRONTEND_PORT=8081
 ```
 
-已有数据卷创建后，修改 `.env` 中的数据库密码不会自动改变数据库内部密码。
+已有数据卷创建后，修改 `.env` 中的数据库密码不会自动改变数据库内部密码；如果要改已有库密码，需要进入 PostgreSQL 执行 `ALTER USER`，否则应恢复原密码。
 
 ### 2. 检查、构建并启动
 
@@ -310,6 +310,7 @@ docker compose logs backend
 - 前端改动未生效：`docker compose build --no-cache frontend && docker compose up -d frontend`。
 - 无法登录：确认已执行管理员初始化命令。
 - 数据库连接失败：确认 `db` healthy，且 `.env` 数据库名称、用户、密码一致。
+- 数据库报错 `failed to resolve host '123@db'`：说明数据库密码包含 `@` 等 URL 特殊字符，连接串被错误解析。把 `.env` 的 `POSTGRES_PASSWORD` 改为只含字母、数字、下划线或短横线的值，然后执行 `docker compose down`，删除并重建数据库数据卷（见下方说明）或在现有 PostgreSQL 中同步修改密码，再重新启动。
 
 ## 在虚拟机上部署
 
