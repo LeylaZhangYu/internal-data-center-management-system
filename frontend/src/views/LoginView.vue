@@ -4,7 +4,6 @@
       <template #header>
         <div style="font-size:20px; font-weight:700">机房管理系统登录</div>
       </template>
-      <el-alert type="info" :closable="false" style="margin-bottom:16px" title="默认账号：admin / admin123" />
       <el-form :model="form" @submit.prevent="submit">
         <el-form-item label="用户名" required>
           <el-input v-model="form.username" />
@@ -27,7 +26,7 @@ import { useAuthStore } from '../stores/auth'
 const router = useRouter()
 const auth = useAuthStore()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: 'admin123' })
+const form = reactive({ username: '', password: '' })
 
 const submit = async () => {
   loading.value = true
