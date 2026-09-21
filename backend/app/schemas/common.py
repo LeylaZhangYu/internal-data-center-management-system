@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 
 from app.models.models import DeviceStatusEnum, DeviceTypeEnum, LinkStatusEnum, RackOrientationEnum, RoleEnum
 
@@ -163,10 +163,10 @@ class DevicePortRead(DevicePortBase, ORMModel):
 
 
 class DeviceBase(BaseModel):
-    asset_number: str
+    asset_number: Optional[str] = None
     name: str
     device_type: DeviceTypeEnum
-    model: str
+    model: Optional[str] = None
     serial_number: Optional[str] = None
     purpose: Optional[str] = None
     status: DeviceStatusEnum = DeviceStatusEnum.planned
@@ -182,6 +182,11 @@ class DeviceBase(BaseModel):
     notes: Optional[str] = None
     administrator_ids: List[int] = []
     ports: List[DevicePortCreate] = []
+
+    @validator("asset_number", "model", "ip_address", "serial_number", pre=True)
+    def normalize_optional_text(cls, value):
+        # 空字符串按 NULL 存储，避免多个未填写的唯一字段相互冲突。
+        return (value.strip() or None) if isinstance(value, str) else value
 
 
 class DeviceCreate(DeviceBase):
@@ -282,9 +287,9 @@ class TopologyResponse(ORMModel):
 
 class VisualizationDevice(ORMModel):
     id: int
-    asset_number: str
+    asset_number: Optional[str] = None
     name: str
-    model: str
+    model: Optional[str] = None
     ip_address: Optional[str]
     status: str
     start_u: Optional[int]

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
 from app.core.database import Base, SessionLocal, engine
+from app.core.schema_updates import ensure_optional_device_fields
 from app.routers import administrators, auth, datacenters, devices, logs, network, overview, racks, visualization
 from app.services.seed import seed_demo_data
 
@@ -31,6 +32,7 @@ app.include_router(visualization.router, prefix=settings.api_prefix)
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    ensure_optional_device_fields(engine)
     if settings.seed_demo_data:
         db = SessionLocal()
         try:

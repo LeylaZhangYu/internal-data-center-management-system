@@ -12,6 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
 from app.main import app  # noqa: E402
+from app import main as application  # noqa: E402
 from app.models.models import Area, DataCenter, Rack, RackOrientationEnum, RoleEnum, User  # noqa: E402
 
 
@@ -43,7 +44,10 @@ def setup_database():
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
+    monkeypatch.setattr(application, "engine", engine)
+    monkeypatch.setattr(application, "SessionLocal", TestingSessionLocal)
+    monkeypatch.setattr(application.settings, "seed_demo_data", False)
     def override_get_db():
         db = TestingSessionLocal()
         try:

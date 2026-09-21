@@ -477,8 +477,22 @@ PYTHONPATH=. python3 init_db.py --seed-demo
 
 ## 导入导出
 
+- 资产编号、型号、IP 地址为选填项；新增、编辑以及 CSV/XLSX 导入均可留空。
+- 填写资产编号或 IP 地址时仍需保持唯一；没有资产编号的导入行也会新建设备，请勿重复导入。
 - 设备页面支持导入 `.csv` / `.xlsx`
 - 导出：`GET /api/devices/export/csv`、`GET /api/devices/export/xlsx`
+
+### 已有数据库升级（设备可选字段）
+
+更新前请备份数据库，暂停其他后端实例的写入，再首次启动新版后端。
+启动时会检查并放宽 `devices.asset_number`、`devices.model` 的非空约束，
+空白字段按 `NULL` 保存，原有非空数据与唯一性约束保留。
+
+- PostgreSQL：使用当前数据库账号执行 `ALTER TABLE`，该账号需有设备表修改权限。
+- SQLite：旧表升级前会在数据库同目录生成 `*.before-device-optionals-*.bak` 备份；
+  升级需该目录可写，并保留足够空间存放备份和临时表。不会清空业务数据。
+- 升级具有幂等性，完成后再次启动无需重建表。
+- SQLite 备份包含业务数据，请妥善保存，不要提交至代码仓库。
 
 ## 测试
 

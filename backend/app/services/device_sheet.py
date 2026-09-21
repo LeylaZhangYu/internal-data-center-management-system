@@ -67,13 +67,13 @@ def sheet_response(file_format, devices=(), template=False):
             help_sheet = wb.create_sheet("填写说明")
             for line in [
                 "请在第一个工作表从第2行开始填写，不要修改表头。模板不包含示例设备。",
-                "必填：资产编号、设备名称、设备类型、型号。资产编号不能与已有设备重复。",
+                "必填：设备名称、设备类型。资产编号、型号、IP地址可留空；填写资产编号或IP地址时不能与已有设备重复。",
                 "设备类型：server / gpu_server / cpu_server / management_node / switch / storage / pdu / firewall / other。",
                 "状态：planned / active / standby / maintenance / retired / off_shelf；留空为planned。",
                 "机柜ID填写系统内已有机柜的数字ID，不是机柜编号。未上架时机柜ID和起始U位留空。",
                 "上架时填写机柜ID、起始U位和占用U数；占用U数默认1，必须是正整数。",
                 "内存GB填写整数；其余可选内容留空即可。设备类型和状态仍使用英文代码。",
-                "导入用于新增设备，不会覆盖已有设备；导出数据重新导入前请检查资产编号。",
+                "导入用于新增设备，不会覆盖已有设备；没有资产编号的行也会新建设备，请勿重复导入。",
             ]:
                 help_sheet.append([line])
             help_sheet.column_dimensions["A"].width = 115

@@ -64,7 +64,7 @@ def validate_rack_placement(db: Session, rack_id: Optional[int], start_u: Option
             continue
         item_end = item.start_u + item.u_height - 1
         if not (end_u < item.start_u or start_u > item_end):
-            raise HTTPException(status_code=400, detail=f"U位冲突，冲突设备: {item.asset_number}")
+            raise HTTPException(status_code=400, detail=f"U位冲突，冲突设备: {item.asset_number or item.name}")
     return rack
 
 
@@ -154,7 +154,7 @@ def create_device(db: Session, payload, user: User) -> Device:
         module="device",
         target_type="device",
         target_id=str(device.id),
-        message=f"新增设备 {device.asset_number}",
+        message=f"新增设备 {device.asset_number or device.name}",
         detail_json={"rack_id": payload.rack_id, "start_u": payload.start_u},
     )
     db.commit()
@@ -212,7 +212,7 @@ def update_device(db: Session, device: Device, payload, user: User) -> Device:
         module="device",
         target_type="device",
         target_id=str(device.id),
-        message=f"更新设备 {device.asset_number}",
+        message=f"更新设备 {device.asset_number or device.name}",
     )
     db.commit()
     db.refresh(device)
@@ -249,7 +249,7 @@ def move_device(db: Session, device: Device, rack_id: int, start_u: int, comment
         module="device",
         target_type="device",
         target_id=str(device.id),
-        message=f"移动设备 {device.asset_number}",
+        message=f"移动设备 {device.asset_number or device.name}",
         detail_json={"from_rack_id": old_rack_id, "to_rack_id": rack_id, "from_start_u": old_start_u, "to_start_u": start_u},
     )
     db.commit()
@@ -282,7 +282,7 @@ def unmount_device(db: Session, device: Device, comment: Optional[str], user: Us
         module="device",
         target_type="device",
         target_id=str(device.id),
-        message=f"下架设备 {device.asset_number}",
+        message=f"下架设备 {device.asset_number or device.name}",
         detail_json={"from_rack_id": old_rack_id, "from_start_u": old_start_u},
     )
     db.commit()

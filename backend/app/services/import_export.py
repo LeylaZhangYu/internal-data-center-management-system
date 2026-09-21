@@ -35,7 +35,7 @@ def parse_upload(file: UploadFile) -> List[dict]:
 def normalize_row(row: dict) -> DeviceCreate:
     row = {HEADER_FIELDS.get(str(key).strip(), str(key).strip()): (value if value is not None else "")
            for key, value in row.items()}
-    for field in ("asset_number", "name", "device_type", "model"):
+    for field in ("name", "device_type"):
         if not str(row.get(field, "")).strip():
             raise HTTPException(status_code=400, detail=f"必填项缺失: {field}")
     ports = []

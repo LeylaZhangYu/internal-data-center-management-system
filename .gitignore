@@ -13,3 +13,6 @@ backend/.pytest_cache/
 frontend/node_modules/
 frontend/dist/
 .DS_Store
+
+# SQLite backup created before optional device fields schema upgrade
+*.before-device-optionals-*.bak

@@ -160,10 +160,10 @@ class Device(TimestampMixin, Base):
     __tablename__ = "devices"
 
     id = Column(Integer, primary_key=True)
-    asset_number = Column(String(100), unique=True, nullable=False, index=True)
+    asset_number = Column(String(100), unique=True, nullable=True, index=True)
     name = Column(String(100), nullable=False)
     device_type = Column(Enum(DeviceTypeEnum), nullable=False)
-    model = Column(String(100), nullable=False)
+    model = Column(String(100), nullable=True)
     serial_number = Column(String(100), unique=True, nullable=True)
     purpose = Column(String(200), nullable=True)
     status = Column(Enum(DeviceStatusEnum), default=DeviceStatusEnum.planned, nullable=False)

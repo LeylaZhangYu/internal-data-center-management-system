@@ -38,21 +38,27 @@
         </template>
       </el-dropdown>
     </div>
-    <p class="import-help">导入支持中英文表头。必填：资产编号、设备名称、设备类型、型号；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
+    <p class="import-help">导入支持中英文表头。必填：设备名称、设备类型；资产编号、型号、IP地址可留空；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
 
     <div class="device-table-layout">
       <div class="device-info-scroll">
     <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width:1350px">
-      <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip />
+      <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.asset_number || '-' }}</template>
+      </el-table-column>
       <el-table-column prop="name" label="设备名称" width="160" show-overflow-tooltip />
       <el-table-column prop="device_type" label="类型" width="190" show-overflow-tooltip>
           <template #default="scope">{{ deviceTypeLabel(scope.row.device_type) }}</template>
         </el-table-column>
-      <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip />
+      <el-table-column prop="model" label="型号" width="140" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.model || '-' }}</template>
+      </el-table-column>
       <el-table-column label="所属机房" width="160" show-overflow-tooltip>
         <template #default="scope">{{ dataCenterName(scope.row) }}</template>
       </el-table-column>
-      <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip />
+      <el-table-column prop="ip_address" label="IP" width="140" show-overflow-tooltip>
+        <template #default="scope">{{ scope.row.ip_address || '-' }}</template>
+      </el-table-column>
       <el-table-column label="安装位置" width="190">
         <template #default="scope">{{ formatInstallLocation(scope.row) }}</template>
       </el-table-column>
@@ -83,18 +89,18 @@
     <el-dialog v-model="visible" :title="form.id ? '编辑设备' : '新增设备'" width="840px">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="资产编号" prop="asset_number" required><el-input v-model="form.asset_number" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="资产编号" prop="asset_number"><el-input v-model="form.asset_number" placeholder="选填" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备名称" prop="name" required><el-input v-model="form.name" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="机房" prop="data_center_id" required><el-select v-model="form.data_center_id" clearable style="width:100%" @change="onDataCenterChange"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备类型" prop="device_type" required><el-select v-model="form.device_type" style="width:100%"><el-option label="通用服务器 (server)" value="server" />
         <el-option label="GPU服务器 (gpu_server)" value="gpu_server" />
         <el-option label="CPU服务器 (cpu_server)" value="cpu_server" />
         <el-option label="管理节点 (management_node)" value="management_node" /><el-option label="交换机 (switch)" value="switch" /><el-option label="存储 (storage)" value="storage" /><el-option label="配电单元 (pdu)" value="pdu" /><el-option label="防火墙 (firewall)" value="firewall" /><el-option label="其他 (other)" value="other" /></el-select></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="型号" prop="model" required><el-input v-model="form.model" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="型号" prop="model"><el-input v-model="form.model" placeholder="选填" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="序列号"><el-input v-model="form.serial_number" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="用途" prop="purpose" required><el-input v-model="form.purpose" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="状态" prop="status" required><el-select v-model="form.status" style="width:100%"><el-option label="计划中 (planned)" value="planned" /><el-option label="运行中 (active)" value="active" /><el-option label="待机 (standby)" value="standby" /><el-option label="维护中 (maintenance)" value="maintenance" /><el-option label="已退役 (retired)" value="retired" /><el-option label="已下架 (off_shelf)" value="off_shelf" /></el-select></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="IP地址" prop="ip_address" required><el-input v-model="form.ip_address" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="IP地址" prop="ip_address"><el-input v-model="form.ip_address" placeholder="选填" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="机柜" prop="rack_id" required><el-select v-model="form.rack_id" clearable style="width:100%"><el-option v-for="item in filteredRacks" :key="item.id" :label="item.code" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="起始U位" required><el-input-number v-model="form.start_u" :min="1" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="占用U数"><el-input-number v-model="form.u_height" :min="1" /></el-form-item></el-col>
@@ -128,10 +134,10 @@
 
     <el-drawer v-model="detailVisible" title="设备详情" size="560px">
       <el-descriptions v-if="currentDetail" :column="2" border>
-        <el-descriptions-item label="资产编号">{{ currentDetail.asset_number }}</el-descriptions-item>
+        <el-descriptions-item label="资产编号">{{ currentDetail.asset_number || '-' }}</el-descriptions-item>
         <el-descriptions-item label="名称">{{ currentDetail.name }}</el-descriptions-item>
         <el-descriptions-item label="类型">{{ deviceTypeLabel(currentDetail.device_type) }}</el-descriptions-item>
-        <el-descriptions-item label="型号">{{ currentDetail.model }}</el-descriptions-item>
+        <el-descriptions-item label="型号">{{ currentDetail.model || '-' }}</el-descriptions-item>
         <el-descriptions-item label="IP地址">{{ currentDetail.ip_address || '-' }}</el-descriptions-item>
         <el-descriptions-item label="状态">{{ deviceStatusLabel(currentDetail.status) }}</el-descriptions-item>
         <el-descriptions-item label="安装位置">{{ formatInstallLocation(currentDetail) }}</el-descriptions-item>
@@ -174,13 +180,10 @@ const moveForm = reactive<any>({ rack_id: undefined, start_u: 1, comment: '' })
 const portsText = ref('')
 const formRef = ref<any>()
 const formRules = {
-  asset_number: [{ required: true, message: '请输入资产编号', trigger: 'blur' }],
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
   device_type: [{ required: true, message: '请选择设备类型', trigger: 'change' }],
-  model: [{ required: true, message: '请输入型号', trigger: 'blur' }],
   purpose: [{ required: true, message: '请输入用途', trigger: 'blur' }],
   status: [{ required: true, message: '请选择状态', trigger: 'change' }],
-  ip_address: [{ required: true, message: '请输入IP地址', trigger: 'blur' }],
   rack_id: [{ required: true, message: '请选择机柜', trigger: 'change' }],
   administrator_ids: [{ type: 'array', required: true, min: 1, message: '请选择至少一名管理员', trigger: 'change' }],
   data_center_id: [{ required: true, message: '请选择机房', trigger: 'change' }],
