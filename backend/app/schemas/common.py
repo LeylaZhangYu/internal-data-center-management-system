@@ -112,6 +112,19 @@ class RackRead(RackBase, ORMModel):
     updated_at: datetime
 
 
+class RackImportError(BaseModel):
+    row: int
+    message: str
+
+
+class RackImportResult(BaseModel):
+    total: int
+    imported: int
+    failed: int
+    errors: List[RackImportError]
+    message: str
+
+
 class RackUtilization(ORMModel):
     occupied_u: int
     remaining_u: int

@@ -1,6 +1,10 @@
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
-from app.models.models import DeviceStatusEnum, Rack
+from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from app.models.models import Area, DataCenter, DeviceStatusEnum, Rack
+from app.services.audit import log_action
 
 
 ACTIVE_DEVICE_STATUSES = {
@@ -41,3 +45,30 @@ def calculate_rack_utilization(rack: Rack) -> Dict[str, float]:
         "remaining_u": remaining,
         "utilization_rate": utilization_rate,
     }
+
+
+def auto_layout_coordinates(row_position: int, column_position: int) -> Tuple[float, float]:
+    return (max(column_position - 1, 0) * 2.2, max(row_position - 1, 0) * 4.0)
+
+
+def create_rack_record(db: Session, payload, user):
+    dc = db.query(DataCenter).filter(DataCenter.id == payload.data_center_id).first()
+    if not dc or not dc.is_active:
+        raise HTTPException(status_code=400, detail="机房不存在或已停用")
+    area = db.query(Area).filter(Area.id == payload.area_id).first()
+    if not area or area.data_center_id != dc.id:
+        raise HTTPException(status_code=400, detail="区域不存在或不属于指定机房")
+    if not area.is_active:
+        raise HTTPException(status_code=400, detail="区域已停用")
+    if db.query(Rack).filter(Rack.data_center_id == dc.id, Rack.code == payload.code).first():
+        raise HTTPException(status_code=409, detail="该机房内机柜编号已存在（含其他区域或停用机柜）")
+    values = payload.dict()
+    values["x_position"], values["y_position"] = auto_layout_coordinates(payload.row_position, payload.column_position)
+    rack = Rack(**values)
+    db.add(rack)
+    db.flush()
+    log_action(db, user=user, action="create", module="rack", target_type="rack",
+               target_id=str(rack.id), message=f"新增机柜 {rack.code}")
+    db.commit()
+    db.refresh(rack)
+    return rack

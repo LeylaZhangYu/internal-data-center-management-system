@@ -1,6 +1,6 @@
-from typing import Optional, Tuple
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, File, UploadFile
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -8,16 +8,12 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import require_roles
 from app.models.models import Device, DevicePort, NetworkLink, Rack, User
-from app.schemas.common import MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate
+from app.schemas.common import MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate, RackImportResult
 from app.services.audit import log_action
-from app.services.rack import build_rack_occupancy, calculate_rack_utilization
+from app.services.rack import build_rack_occupancy, calculate_rack_utilization, auto_layout_coordinates, create_rack_record
+from app.services.rack_import import import_racks, parse_rack_upload, template_response
 
 router = APIRouter(prefix="/racks", tags=["racks"])
-
-
-def auto_layout_coordinates(row_position: int, column_position: int) -> Tuple[float, float]:
-    # 3D 展示使用固定间距，用户只需维护行列位置。
-    return (max(column_position - 1, 0) * 2.2, max(row_position - 1, 0) * 4.0)
 
 
 @router.get("", response_model=PagedResponse)
@@ -42,6 +38,20 @@ def list_racks(
     return PagedResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+@router.get("/template/xlsx")
+def download_rack_template(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    return template_response(db)
+
+
+@router.post("/import", response_model=RackImportResult)
+def import_rack_file(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    return import_racks(db, parse_rack_upload(file), current_user)
+
+
 @router.get("/{rack_id}", response_model=RackDetail)
 def get_rack(rack_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     rack = db.query(Rack).options(joinedload(Rack.devices)).filter(Rack.id == rack_id).first()
@@ -56,14 +66,7 @@ def create_rack(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles("admin")),
 ):
-    values = payload.dict()
-    values["x_position"], values["y_position"] = auto_layout_coordinates(values["row_position"], values["column_position"])
-    rack = Rack(**values)
-    db.add(rack)
-    log_action(db, user=current_user, action="create", module="rack", target_type="rack", target_id=None, message=f"新增机柜 {payload.code}")
-    db.commit()
-    db.refresh(rack)
-    return rack
+    return create_rack_record(db, payload, current_user)
 
 
 @router.put("/{rack_id}", response_model=RackRead)

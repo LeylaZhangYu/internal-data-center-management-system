@@ -4,7 +4,23 @@
       <el-input v-model="keyword" placeholder="搜索机柜编号/备注" style="width:240px" @keyup.enter="load" />
       <el-button @click="load">查询</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增机柜</el-button>
+      <el-upload :show-file-list="false" :before-upload="beforeRackUpload" accept=".xlsx" :disabled="!canEdit || importing">
+        <el-button :disabled="!canEdit || importing" :loading="importing">Excel 批量导入</el-button>
+      </el-upload>
+      <el-button @click="downloadRackTemplate" :loading="downloadingTemplate">下载导入模板</el-button>
     </div>
+    <p class="rack-import-help">请先下载模板；机房ID、区域ID、机柜编号必填。模板内含机房区域参考，坐标自动生成。仅支持 .xlsx（最多1000条、5MB）。</p>
+    <el-dialog v-model="importResultVisible" title="机柜导入结果" width="640px">
+      <template v-if="importResult">
+        <el-alert :title="importResult.message" :type="importResult.failed ? 'warning' : 'success'" :closable="false" />
+        <p v-if="importResult.failed" class="rack-import-help">成功的机柜已保存。请仅修正并重新导入以下失败行，避免重复导入。</p>
+        <el-table v-if="importResult.errors.length" :data="importResult.errors" max-height="320">
+          <el-table-column prop="row" label="Excel 行号" width="110" />
+          <el-table-column prop="message" label="失败原因" />
+        </el-table>
+      </template>
+      <template #footer><el-button @click="importResultVisible = false">关闭</el-button></template>
+    </el-dialog>
     <el-table class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
       <el-table-column prop="code" label="机柜编号" show-overflow-tooltip />
       <el-table-column prop="data_center_id" label="机房ID" />
@@ -91,6 +107,10 @@ import { orientationLabel } from '../utils/labels'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')
+const importing = ref(false)
+const downloadingTemplate = ref(false)
+const importResultVisible = ref(false)
+const importResult = ref<{ total: number; imported: number; failed: number; message: string; errors: { row: number; message: string }[] } | null>(null)
 const keyword = ref('')
 const rows = ref<any[]>([])
 const total = ref(0)
@@ -112,6 +132,60 @@ const load = async () => {
   const { data } = await client.get('/racks', { params: { page: page.value, page_size: pageSize, keyword: keyword.value || undefined } })
   rows.value = data.items
   total.value = data.total
+}
+const fileError = async (error: any, fallback: string) => {
+  let body = error?.response?.data
+  if (body instanceof Blob) {
+    try { body = JSON.parse(await body.text()) } catch { body = null }
+  }
+  if (typeof body?.detail === 'string') return body.detail
+  if (error?.response?.status === 401) return '登录已失效，请重新登录'
+  if (error?.response?.status === 404) return '导入/模板接口不存在，请确认后端已更新'
+  return fallback
+}
+const downloadRackTemplate = async () => {
+  downloadingTemplate.value = true
+  let url: string | undefined
+  try {
+    const { data } = await client.get('/racks/template/xlsx', { responseType: 'blob' })
+    url = URL.createObjectURL(data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = '机柜导入模板.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+  } catch (error) {
+    ElMessage.error(await fileError(error, '模板下载失败，请稍后重试'))
+  } finally {
+    if (url) { const blobUrl = url; window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000) }
+    downloadingTemplate.value = false
+  }
+}
+const beforeRackUpload = async (file: File) => {
+  if (importing.value) return false
+  if (!file.name.toLowerCase().endsWith('.xlsx') || file.size > 5 * 1024 * 1024) {
+    ElMessage.warning('请选择不超过5MB的.xlsx文件')
+    return false
+  }
+  importing.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await client.post('/racks/import', formData)
+    importResult.value = data
+    importResultVisible.value = true
+    if (data.imported) {
+      keyword.value = ''
+      page.value = 1
+      try { await load() } catch { ElMessage.warning('导入已完成，列表刷新失败，请点击查询；不要重复导入') }
+    }
+  } catch (error) {
+    ElMessage.error(await fileError(error, '导入请求失败，请先查询机柜列表确认结果，避免重复导入'))
+  } finally {
+    importing.value = false
+  }
+  return false
 }
 const openDialog = (row?: any) => {
   resetForm()
@@ -171,6 +245,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.rack-import-help { font-size: 12px; line-height: 1.6; color: #64748b; margin: 8px 0 16px; }
 .field-help{width:100%;margin-top:4px;color:#64748b;font-size:12px;line-height:1.5}.field-unit{color:#64748b;font-size:12px;white-space:nowrap}
 .rack-table :deep(.el-table__cell){padding:10px 8px;white-space:nowrap}.rack-table :deep(.el-table__header th){background:#f5f8fc!important;color:#475569;font-weight:600}.rack-table :deep(.el-table__fixed-right){box-shadow:-5px 0 10px rgba(15,23,42,.06);background:#fff}.rack-table :deep(.el-table__fixed-right .el-table__cell){background:#fff!important}.rack-table :deep(.el-table__row:hover>td){background:#eff6ff!important}@media(max-width:900px){.rack-table{min-width:980px}}
 </style>
