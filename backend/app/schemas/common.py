@@ -335,6 +335,48 @@ class VisualizationDataCenter(ORMModel):
     areas: List[VisualizationArea]
 
 
+class NetworkSceneDevice(BaseModel):
+    id: int
+    name: str
+    device_type: str
+    status: str
+    asset_number: Optional[str] = None
+    model: Optional[str] = None
+    ip_address: Optional[str] = None
+    purpose: Optional[str] = None
+    notes: Optional[str] = None
+    data_center_id: Optional[int] = None
+    data_center_name: Optional[str] = None
+    area_name: Optional[str] = None
+    rack_code: Optional[str] = None
+    start_u: Optional[int] = None
+    u_height: int
+    administrators: List[str]
+
+
+class NetworkSceneLink(BaseModel):
+    id: int
+    source: int
+    target: int
+    source_port: str
+    target_port: str
+    bandwidth: Optional[str] = None
+    vlan: Optional[str] = None
+    status: str
+    description: Optional[str] = None
+
+
+class NetworkSceneDataCenter(BaseModel):
+    id: int
+    name: str
+
+
+class NetworkSceneResponse(BaseModel):
+    data_centers: List[NetworkSceneDataCenter]
+    nodes: List[NetworkSceneDevice]
+    links: List[NetworkSceneLink]
+
+
 class PagedResponse(ORMModel):
     items: List[Any]
     total: int

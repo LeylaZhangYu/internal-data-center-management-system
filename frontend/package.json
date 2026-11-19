@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:topology": "node --test tests/topology.test.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
@@ -21,8 +22,8 @@
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
-    "typescript": "^5.4.5",
+    "typescript": "5.6.3",
     "vite": "^5.4.14",
-    "vue-tsc": "^1.8.27"
+    "vue-tsc": "2.2.12"
   }
 }

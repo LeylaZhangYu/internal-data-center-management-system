@@ -14,6 +14,7 @@
         <el-menu-item index="/racks">机柜管理</el-menu-item>
         <el-menu-item index="/devices">设备管理</el-menu-item>
         <el-menu-item index="/network">网络上联</el-menu-item>
+        <el-menu-item index="/network-topology">3D网络拓扑</el-menu-item>
         <el-menu-item index="/visualization">3D可视化</el-menu-item>
         <el-menu-item index="/administrators">服务器管理员</el-menu-item>
         <el-menu-item index="/logs">操作日志</el-menu-item>

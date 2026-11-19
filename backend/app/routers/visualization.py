@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.models.models import Area, Device, DevicePort, NetworkLink, Rack, User
+from app.models.models import Area, DataCenter, Device, DevicePort, NetworkLink, Rack, User
 from app.schemas.common import VisualizationArea, VisualizationDataCenter, VisualizationDevice, VisualizationRack
+from app.schemas.common import NetworkSceneResponse
 from app.services.rack import calculate_rack_utilization
 
 router = APIRouter(prefix="/visualization", tags=["visualization"])
@@ -59,3 +60,41 @@ def get_layout(db: Session = Depends(get_db), current_user: User = Depends(get_c
         )
         grouped[dc.id]["areas"].append(area_payload)
     return [VisualizationDataCenter(**value) for value in grouped.values()]
+
+
+@router.get("/network", response_model=NetworkSceneResponse)
+def get_network_scene(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Include unmounted/isolated devices; only stored port links become edges."""
+    devices = db.query(Device).options(
+        joinedload(Device.rack).joinedload(Rack.data_center),
+        joinedload(Device.rack).joinedload(Rack.area),
+        joinedload(Device.administrators),
+    ).order_by(Device.id).all()
+    links = db.query(NetworkLink).options(
+        joinedload(NetworkLink.local_port), joinedload(NetworkLink.remote_port),
+    ).order_by(NetworkLink.id).all()
+    nodes = []
+    for device in devices:
+        rack = device.rack
+        nodes.append({
+            "id": device.id, "name": device.name, "device_type": device.device_type.value,
+            "status": device.status.value, "asset_number": device.asset_number,
+            "model": device.model, "ip_address": device.ip_address,
+            "purpose": device.purpose, "notes": device.notes,
+            "data_center_id": rack.data_center_id if rack else None,
+            "data_center_name": rack.data_center.name if rack else None,
+            "area_name": rack.area.name if rack else None,
+            "rack_code": rack.code if rack else None,
+            "start_u": device.start_u, "u_height": device.u_height,
+            "administrators": [admin.name for admin in device.administrators],
+        })
+    return {
+        "data_centers": [{"id": dc.id, "name": dc.name} for dc in db.query(DataCenter).order_by(DataCenter.id).all()],
+        "nodes": nodes,
+        "links": [{
+            "id": link.id, "source": link.local_port.device_id, "target": link.remote_port.device_id,
+            "source_port": link.local_port.name, "target_port": link.remote_port.name,
+            "bandwidth": link.bandwidth, "vlan": link.vlan, "status": link.status.value,
+            "description": link.description,
+        } for link in links],
+    }

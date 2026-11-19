@@ -1,0 +1,48 @@
+export interface RackDevice {
+  id: number
+  asset_number: string | null
+  name: string
+  model: string | null
+  ip_address: string | null
+  status: string
+  start_u: number | null
+  u_height: number
+  administrators: string[]
+  links: string[]
+}
+export interface RackLayout {
+  id: number
+  code: string
+  x_position: number
+  y_position: number
+  orientation: string
+  total_u: number
+  utilization_rate: number
+  device_count: number
+  devices: RackDevice[]
+}
+export interface AreaLayout { id: number; name: string; racks: RackLayout[] }
+export interface DataCenterLayout { id: number; name: string; areas: AreaLayout[] }
+export const areaColors = ['#64adff', '#4dd5c0', '#ae99ff', '#e7b778', '#7fcddd']
+export const statusColors: Record<string, string> = {
+  active: '#4edbb5', standby: '#69b2ff', maintenance: '#ffbc69', planned: '#af98ff', retired: '#8391a9', off_shelf: '#8391a9',
+}
+export const unitHeight = .105
+export const rackHeight = (rack: RackLayout) => rack.total_u * unitHeight + .44
+export function devicePlacement(device: RackDevice) {
+  const height = device.u_height * unitHeight - .012
+  return { height, y: .22 + ((device.start_u || 1) - 1) * unitHeight + device.u_height * unitHeight / 2 }
+}
+// Areas use local rack coordinates. Separate their display panels without changing the stored layout.
+export function placeAreas(areas: AreaLayout[]) {
+  let cursor = 0
+  return areas.filter(area => area.racks.length).map((area, index) => {
+    const xs = area.racks.map(rack => rack.x_position), zs = area.racks.map(rack => rack.y_position)
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
+    const width = Math.max(5, maxX - minX + 4), depth = Math.max(5, maxZ - minZ + 4)
+    const centerX = cursor + width / 2
+    const offsetX = centerX - (minX + maxX) / 2, offsetZ = -(minZ + maxZ) / 2
+    cursor += width + 2.5
+    return { area, width, depth, centerX, offsetX, offsetZ, color: areaColors[index % areaColors.length] }
+  })
+}

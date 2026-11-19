@@ -25,6 +25,7 @@ const routes: RouteRecordRaw[] = [
       { path: 'administrators', component: AdminView },
       { path: 'network', component: NetworkView },
       { path: 'visualization', component: VisualizationView },
+      { path: 'network-topology', component: () => import('../views/NetworkTopologyView.vue') },
       { path: 'logs', component: LogsView },
     ],
   },
