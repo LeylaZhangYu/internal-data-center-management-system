@@ -4,12 +4,14 @@
       <el-button type="primary" @click="openDcDialog()" :disabled="!canEdit">新增机房</el-button>
       <el-button @click="openAreaDialog()" :disabled="!canEdit || !datacenters.length">新增区域</el-button>
     </div>
+    <p class="id-help">机房ID、区域ID为系统生成的固定编号，与机柜管理及 Excel 导入模板中的对应字段一致。</p>
     <el-table class="datacenter-table" :data="datacenters" row-key="id" default-expand-all table-layout="fixed">
       <el-table-column type="expand">
         <template #default="scope">
           <div class="area-panel">
-            <div class="area-panel-title"><span>区域列表</span><small>{{ (scope.row.areas || []).length }} 个区域</small></div>
+            <div class="area-panel-title"><span>{{ scope.row.name }} · 机房ID：{{ scope.row.id }}</span><span>区域列表</span><small>{{ (scope.row.areas || []).length }} 个区域</small></div>
           <el-table class="area-table" :data="scope.row.areas || []" size="small" table-layout="fixed">
+            <el-table-column prop="id" label="区域ID" width="100" />
             <el-table-column prop="name" label="区域" width="150" show-overflow-tooltip />
             <el-table-column prop="row_count" label="行数" width="100" />
             <el-table-column prop="column_count" label="列数" width="100" />
@@ -24,6 +26,7 @@
           </div>
         </template>
       </el-table-column>
+      <el-table-column prop="id" label="机房ID" width="100" />
       <el-table-column prop="name" label="机房名称" min-width="180" show-overflow-tooltip />
       <el-table-column prop="location" label="位置" min-width="220" show-overflow-tooltip />
       <el-table-column prop="owner" label="负责人" min-width="140" />
@@ -45,6 +48,7 @@
 
     <el-dialog v-model="dcVisible" :title="dcForm.id ? '编辑机房' : '新增机房'" width="560px">
       <el-form :model="dcForm" label-width="90px">
+        <el-form-item v-if="dcForm.id" label="机房ID"><span>{{ dcForm.id }}</span></el-form-item>
         <el-form-item label="名称" required><el-input v-model="dcForm.name" /></el-form-item>
         <el-form-item label="位置" required><el-input v-model="dcForm.location" /></el-form-item>
         <el-form-item label="负责人" required><el-input v-model="dcForm.owner" /></el-form-item>
@@ -59,9 +63,10 @@
 
     <el-dialog v-model="areaVisible" :title="areaForm.id ? '编辑区域' : '新增区域'" width="560px">
       <el-form :model="areaForm" label-width="90px">
+        <el-form-item v-if="areaForm.id" label="区域ID"><span>{{ areaForm.id }}</span></el-form-item>
         <el-form-item label="所属机房" required>
           <el-select v-model="areaForm.data_center_id" style="width:100%">
-            <el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" />
+            <el-option v-for="item in datacenters" :key="item.id" :label="`${item.name}（机房ID：${item.id}）`" :value="item.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="区域名称" required><el-input v-model="areaForm.name" /></el-form-item>
@@ -175,6 +180,12 @@ onMounted(load)
 </script>
 
 <style scoped>
+.id-help {
+  margin: 0 0 14px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.6;
+}
 .datacenter-table :deep(.el-table__expanded-cell) {
   padding: 0 18px 10px 74px;
   background: #f7faff;

@@ -23,8 +23,8 @@
     </el-dialog>
     <el-table class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
       <el-table-column prop="code" label="机柜编号" show-overflow-tooltip />
-      <el-table-column prop="data_center_id" label="机房ID" />
-      <el-table-column prop="area_id" label="区域ID" />
+      <el-table-column prop="data_center_id" label="机房名称（ID）" min-width="180" show-overflow-tooltip :formatter="(row) => dataCenterLabel(row.data_center_id)" />
+      <el-table-column prop="area_id" label="区域名称（ID）" min-width="160" show-overflow-tooltip :formatter="(row) => areaLabel(row.data_center_id, row.area_id)" />
       <el-table-column prop="row_position" label="行" />
       <el-table-column prop="column_position" label="列" />
       <el-table-column prop="orientation" label="朝向" show-overflow-tooltip>
@@ -52,8 +52,8 @@
 
     <el-dialog v-model="visible" :title="form.id ? '编辑机柜' : '新增机柜'" width="640px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="所属机房" required><el-select v-model="form.data_center_id" style="width:100%"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="所属区域" required><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="所属机房" required><el-select v-model="form.data_center_id" style="width:100%"><el-option v-for="item in datacenters" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="所属区域" required><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
         <el-form-item label="机柜编号" required><el-input v-model="form.code" /></el-form-item>
         <el-form-item label="机柜行列">
           <el-space>
@@ -78,6 +78,8 @@
     <el-drawer v-model="detailVisible" title="机柜详情" size="520px">
       <div v-if="detail">
         <el-descriptions :column="2" border>
+          <el-descriptions-item label="所属机房">{{ dataCenterLabel(detail.data_center_id) }}</el-descriptions-item>
+          <el-descriptions-item label="所属区域">{{ areaLabel(detail.data_center_id, detail.area_id) }}</el-descriptions-item>
           <el-descriptions-item label="机柜编号">{{ detail.code }}</el-descriptions-item>
           <el-descriptions-item label="设备数">{{ detail.device_count }}</el-descriptions-item>
           <el-descriptions-item label="已占用U">{{ detail.utilization.occupied_u }}</el-descriptions-item>
@@ -120,6 +122,12 @@ const visible = ref(false)
 const detailVisible = ref(false)
 const detail = ref<any>(null)
 const datacenters = ref<any[]>([])
+const dataCentersById = computed(() => new Map(datacenters.value.map(dc => [dc.id, dc])))
+const dataCenterLabel = (id: number) => `${dataCentersById.value.get(id)?.name || '未知机房'}（${id}）`
+const areaLabel = (dataCenterId: number, areaId: number) => {
+  const area = dataCentersById.value.get(dataCenterId)?.areas?.find((item: any) => item.id === areaId)
+  return `${area?.name || '未知区域'}（${areaId}）`
+}
 const form = reactive<any>({})
 const currentAreas = computed(() => datacenters.value.find((item) => item.id === form.data_center_id)?.areas || [])
 
