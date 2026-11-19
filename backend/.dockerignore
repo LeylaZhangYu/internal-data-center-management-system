@@ -1,0 +1,22 @@
+# Local environments and generated Python files
+.venv/
+venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local configuration, databases and backups
+.env
+.env.*
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.bak
+*.log
+.DS_Store
+.git/

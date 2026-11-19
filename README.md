@@ -281,6 +281,36 @@ docker compose down
 docker compose down -v
 ```
 
+#### 仅更新后端 Python 代码（复用依赖缓存）
+
+当此次更新仅涉及 `backend/app/` 中的 Python 代码时，在项目根目录执行：
+
+```bash
+git pull
+docker compose up -d --build --no-deps backend
+```
+
+此命令适用于数据库等依赖服务已经运行的环境；首次部署仍使用
+`docker compose up -d --build`。如更新同时涉及前端，也需要构建并更新前端。
+
+后端 Dockerfile 先复制 `requirements.txt` 并安装依赖，再复制 `app/`。
+在同一个构建器中，只要基础镜像、依赖文件及安装指令未变且已有构建缓存仍在，
+仅修改 Python 代码会直接复用依赖层，不执行 `pip install`。
+`pip install --no-cache-dir` 只关闭 pip 的下载缓存，不影响 Docker 层缓存。
+`backend/.dockerignore` 排除本地虚拟环境、Python 字节码、数据库等无关文件。
+
+如需确认缓存命中，可以分两步执行：
+
+```bash
+docker compose --progress plain build backend
+docker compose up -d --no-deps backend
+```
+
+构建输出中 `RUN pip install --no-cache-dir -r requirements.txt` 对应步骤应显示
+`CACHED`（首次构建除外）。如果修改了依赖文件、安装步骤、基础镜像发生变化，
+或清理了构建缓存、切换了构建器/构建平台，则可能重新安装依赖。
+日常更新不要加 `--no-cache`，也不需要提前清理构建缓存。
+
 ### 6. 备份与恢复
 
 备份：
