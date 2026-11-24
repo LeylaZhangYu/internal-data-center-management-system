@@ -36,13 +36,18 @@ export function devicePlacement(device: RackDevice) {
 // Areas use local rack coordinates. Separate their display panels without changing the stored layout.
 export function placeAreas(areas: AreaLayout[]) {
   let cursor = 0
-  return areas.filter(area => area.racks.length).map((area, index) => {
+  return areas.flatMap((area, index) => {
+    if (!area.racks.length) return []
     const xs = area.racks.map(rack => rack.x_position), zs = area.racks.map(rack => rack.y_position)
     const minX = Math.min(...xs), maxX = Math.max(...xs), minZ = Math.min(...zs), maxZ = Math.max(...zs)
     const width = Math.max(5, maxX - minX + 4), depth = Math.max(5, maxZ - minZ + 4)
     const centerX = cursor + width / 2
     const offsetX = centerX - (minX + maxX) / 2, offsetZ = -(minZ + maxZ) / 2
     cursor += width + 2.5
-    return { area, width, depth, centerX, offsetX, offsetZ, color: areaColors[index % areaColors.length] }
+    return [{ area, width, depth, centerX, offsetX, offsetZ, color: areaColors[index % areaColors.length] }]
   })
 }
+
+// A stale off-shelf record may still retain placement fields in older databases.
+export const isMounted = (device: RackDevice) => device.status !== 'off_shelf'
+  && device.start_u !== null && device.start_u > 0

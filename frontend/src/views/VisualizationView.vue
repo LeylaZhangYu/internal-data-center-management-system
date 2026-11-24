@@ -67,7 +67,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import RackScene from '../components/rack-scene/RackScene.vue'
-import { areaColors, statusColors, type DataCenterLayout } from '../components/rack-scene/layout'
+import { areaColors, statusColors, isMounted, type DataCenterLayout } from '../components/rack-scene/layout'
 import { deviceStatusLabel, orientationLabel } from '../utils/labels'
 
 const layoutData = ref<DataCenterLayout[]>([])
@@ -86,7 +86,7 @@ const matchingRacks = computed(() => {
 })
 const selectedRack = computed(() => visibleRacks.value.find(rack => rack.id === selectedRackId.value))
 const totalU = computed(() => visibleRacks.value.reduce((sum, rack) => sum + rack.total_u, 0))
-const occupiedU = computed(() => visibleRacks.value.reduce((sum, rack) => sum + rack.devices.filter(device => device.status !== 'off_shelf' && device.start_u !== null).reduce((used, device) => used + device.u_height, 0), 0))
+const occupiedU = computed(() => visibleRacks.value.reduce((sum, rack) => sum + rack.devices.filter(isMounted).reduce((used, device) => used + device.u_height, 0), 0))
 const capacityRate = computed(() => totalU.value ? Math.round(occupiedU.value / totalU.value * 1000) / 10 : 0)
 const deviceCount = computed(() => visibleRacks.value.reduce((sum, rack) => sum + rack.device_count, 0))
 const meterWidth = (rate: number) => `${Math.min(100, Math.max(0, rate))}%`

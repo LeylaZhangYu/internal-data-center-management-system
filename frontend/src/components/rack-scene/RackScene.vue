@@ -8,7 +8,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { placeAreas, rackHeight, devicePlacement, unitHeight, statusColors, type AreaLayout } from './layout'
+import { placeAreas, rackHeight, devicePlacement, isMounted, unitHeight, statusColors, type AreaLayout } from './layout'
 
 const props = defineProps<{ areas: AreaLayout[]; selectedRack: number | null; selectedDevice: number | null; labels: boolean; grid: boolean; transparent: boolean; rotate: boolean }>()
 const emit = defineEmits<{ (event: 'select', rackId: number | null, deviceId: number | null): void }>()
@@ -73,7 +73,7 @@ function rebuild() {
       const strip = box(1.2, .026, .035, color, true); strip.position.set(0, height - .15, -.71); group.add(strip)
       // Physical U scale: an individual 1U server keeps its correct height, even in a tall rack.
       for (let u = 0; u <= rack.total_u; u++) { const tick = box(u % 5 === 0 ? .1 : .05, .008, .015, '#728ba8', true); tick.position.set(-.64, .22 + u * unitHeight, -.715); group.add(tick) }
-      rack.devices.filter(device => device.start_u !== null).forEach(device => {
+      rack.devices.filter(isMounted).forEach(device => {
         const position = devicePlacement(device), statusColor = statusColors[device.status] || '#8391a9'
         const server = box(1.25, position.height, 1.15, '#2b465f'); server.position.set(0, position.y, 0); server.userData = { rackId: rack.id, deviceId: device.id }; group.add(server); clickable.push(server); devices.set(device.id, server)
         const face = box(1.12, Math.max(.035, position.height - .025), .018, '#263d55'); face.position.set(0, position.y, -.585); group.add(face)

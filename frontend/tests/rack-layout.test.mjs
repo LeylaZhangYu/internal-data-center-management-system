@@ -5,7 +5,7 @@ import ts from 'typescript'
 
 const source = await readFile(new URL('../src/components/rack-scene/layout.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2020, target: ts.ScriptTarget.ES2020 } }).outputText
-const { placeAreas, devicePlacement, rackHeight, unitHeight } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
+const { placeAreas, devicePlacement, rackHeight, unitHeight, isMounted, areaColors } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
 
 test('areas with identical local origins are separated and keep relative rack spacing', () => {
   const areas = [
@@ -32,4 +32,19 @@ test('1U devices on adjacent U slots do not overlap and the top device fits in 4
 test('empty areas produce no invalid scene coordinates', () => {
   assert.deepEqual(placeAreas([]), [])
   assert.deepEqual(placeAreas([{ id: 1, name: '空区域', racks: [] }]), [])
+})
+
+test('off-shelf records with stale U slots are not mounted', () => {
+  assert.equal(isMounted({ status: 'off_shelf', start_u: 1 }), false)
+  assert.equal(isMounted({ status: 'active', start_u: null }), false)
+  assert.equal(isMounted({ status: 'active', start_u: 0 }), false)
+  assert.equal(isMounted({ status: 'active', start_u: 1 }), true)
+})
+
+test('empty areas do not shift scene colors away from the area legend', () => {
+  const [placement] = placeAreas([
+    { id: 1, name: 'empty', racks: [] },
+    { id: 2, name: 'populated', racks: [{ x_position: 0, y_position: 0 }] },
+  ])
+  assert.equal(placement.color, areaColors[1])
 })

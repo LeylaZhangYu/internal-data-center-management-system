@@ -8,6 +8,7 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { linkCurve, fittedView } from './geometry'
 import { tiers, tierIndex, linkColors, type SceneDevice, type SceneLink } from './model'
 
 const props = defineProps<{ nodes: SceneDevice[]; links: SceneLink[]; selected: number | null; labels: boolean; linkLabels: boolean; rotate: boolean; flow: boolean }>()
@@ -15,10 +16,12 @@ const emit = defineEmits<{ (event: 'select', id: number | null): void }>()
 const host = ref<HTMLDivElement>()
 const renderError = ref('')
 let renderer: THREE.WebGLRenderer, camera: THREE.PerspectiveCamera, scene: THREE.Scene, controls: OrbitControls
-let content: THREE.Group, observer: ResizeObserver, frame = 0, disposed = false
+let content: THREE.Group, observer: ResizeObserver, frame = 0, disposed = false, ready = false
 let bounds = { width: 36, depth: 24, height: 40 }
+const sceneBox = new THREE.Box3()
+let lastAspect = 1
 const nodeObjects = new Map<number, { body: THREE.Mesh; label: THREE.Sprite; ring: THREE.Mesh; decor: THREE.Group }>()
-const edgeObjects: { link: SceneLink; line: THREE.Line; label: THREE.Sprite; dot: THREE.Mesh; curve: THREE.QuadraticBezierCurve3 }[] = []
+const edgeObjects: { link: SceneLink; line: THREE.Line; label: THREE.Sprite; dot: THREE.Mesh; curve: THREE.Curve<THREE.Vector3> }[] = []
 const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 let pointerStart = { x: 0, y: 0 }
@@ -45,7 +48,7 @@ function textSprite(text: string, color = '#d8e6ff', width = 8, height = 1.1) {
   return sprite
 }
 function rebuild() {
-  if (!renderer || disposed) return
+  if (!ready || disposed) return
   disposeGroup(content); content = new THREE.Group(); scene.add(content)
   nodeObjects.clear(); edgeObjects.length = 0
   const grouped = tiers.map((_, index) => props.nodes.filter(node => tierIndex(node.device_type) === index))
@@ -58,7 +61,9 @@ function rebuild() {
     const y = (tiers.length - index - 1) * 9
     const plate = new THREE.Mesh(new THREE.PlaneGeometry(bounds.width, bounds.depth), new THREE.MeshBasicMaterial({ color: tier.color, transparent: true, opacity: .055, side: THREE.DoubleSide, depthWrite: false }))
     plate.rotation.x = -Math.PI / 2; plate.position.y = y; content.add(plate)
-    const border = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(bounds.width, .06, bounds.depth)), new THREE.LineBasicMaterial({ color: tier.color, transparent: true, opacity: .25 }))
+    const borderSource = new THREE.BoxGeometry(bounds.width, .06, bounds.depth)
+    const borderGeometry = new THREE.EdgesGeometry(borderSource); borderSource.dispose()
+    const border = new THREE.LineSegments(borderGeometry, new THREE.LineBasicMaterial({ color: tier.color, transparent: true, opacity: .25 }))
     border.position.y = y; content.add(border)
     const title = textSprite(`${String(index + 1).padStart(2, '0')}  ${tier.name}  ·  ${grouped[index].length}`, tier.color, 12, 1.3)
     title.position.set(-bounds.width / 2 + 6, y + 1.1, bounds.depth / 2 + 1.3); content.add(title)
@@ -89,10 +94,7 @@ function rebuild() {
     if (!start || !end) return
     const key = [link.source, link.target].sort((a, b) => a - b).join(':')
     const offset = parallel.get(key) || 0; parallel.set(key, offset + 1)
-    const middle = start.clone().lerp(end, .5)
-    middle.z += 3 + offset * 2; middle.y += 3 + offset
-    if (link.source === link.target) middle.x += 6 + offset * 2
-    const curve = new THREE.QuadraticBezierCurve3(start, middle, end)
+    const curve = linkCurve(start, end, offset, link.source === link.target)
     const geometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(40))
     const color = linkColors[link.status] || '#94a3b8'
     const material = link.status === 'up' ? new THREE.LineBasicMaterial({ color, transparent: true, opacity: .65 }) : new THREE.LineDashedMaterial({ color, transparent: true, opacity: .65, dashSize: .7, gapSize: .45 })
@@ -102,6 +104,7 @@ function rebuild() {
     const dot = new THREE.Mesh(new THREE.SphereGeometry(.18, 8, 6), new THREE.MeshBasicMaterial({ color })); content.add(dot)
     edgeObjects.push({ link, line, label, dot, curve })
   })
+  sceneBox.setFromObject(content)
   resetView(); updateFocus()
 }
 function updateFocus() {
@@ -127,18 +130,14 @@ function updateFocus() {
   })
 }
 function resetView(top = false) {
-  if (!camera) return
-  const center = new THREE.Vector3(0, 18, 0)
-  const radius = Math.sqrt(bounds.width ** 2 + bounds.depth ** 2 + bounds.height ** 2) / 2
-  const halfFov = Math.min(THREE.MathUtils.degToRad(camera.fov / 2), Math.atan(Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * camera.aspect))
-  const distance = radius / Math.sin(halfFov) * 1.12
-  const direction = top ? new THREE.Vector3(0, 1, .01) : new THREE.Vector3(.85, .65, 1)
-  camera.position.copy(center).add(direction.normalize().multiplyScalar(distance))
+  if (!ready) return
+  const { center, position, distance } = fittedView(sceneBox, camera.fov, camera.aspect, top)
+  camera.position.copy(position)
   camera.far = Math.max(2000, distance * 5); camera.updateProjectionMatrix()
   controls.target.copy(center); controls.maxDistance = distance * 3; controls.minDistance = 6; controls.update()
 }
 function selectAt(event: PointerEvent) {
-  if (!renderer || Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5 || event.button !== 0) return
+  if (!ready || Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) > 5 || event.button !== 0) return
   const rect = renderer.domElement.getBoundingClientRect()
   pointer.set((event.clientX - rect.left) / rect.width * 2 - 1, -(event.clientY - rect.top) / rect.height * 2 + 1)
   raycaster.setFromCamera(pointer, camera)
@@ -146,11 +145,20 @@ function selectAt(event: PointerEvent) {
   emit('select', hit ? hit.object.userData.deviceId : null)
 }
 function pointerDown(event: PointerEvent) { pointerStart = { x: event.clientX, y: event.clientY } }
-function contextLost(event: Event) { event.preventDefault(); renderError.value = '图形上下文已中断，请刷新页面重试。'; cancelAnimationFrame(frame) }
+function contextLost(event: Event) { event.preventDefault(); ready = false; renderError.value = '图形上下文已中断，请刷新页面重试。'; cancelAnimationFrame(frame) }
 function resize() {
   if (!host.value || !renderer) return
   const width = Math.max(1, host.value.clientWidth), height = Math.max(1, host.value.clientHeight)
   camera.aspect = width / height; camera.updateProjectionMatrix(); renderer.setSize(width, height)
+  if (ready && camera.aspect !== lastAspect) {
+    const tangent = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))
+    const before = Math.atan(tangent * Math.min(1, lastAspect)), after = Math.atan(tangent * Math.min(1, camera.aspect))
+    const offset = camera.position.clone().sub(controls.target)
+    camera.position.copy(controls.target).add(offset.multiplyScalar(Math.sin(before) / Math.sin(after)))
+    camera.far = Math.max(camera.far, offset.length() * 5); camera.updateProjectionMatrix()
+    controls.maxDistance = Math.max(controls.maxDistance, offset.length() * 3)
+  }
+  lastAspect = camera.aspect
 }
 onMounted(() => {
   try {
@@ -164,10 +172,10 @@ onMounted(() => {
     renderer.domElement.addEventListener('pointerdown', pointerDown)
     renderer.domElement.addEventListener('pointerup', selectAt)
     renderer.domElement.addEventListener('webglcontextlost', contextLost)
-    observer = new ResizeObserver(resize); observer.observe(host.value!); resize(); rebuild()
+    observer = new ResizeObserver(resize); observer.observe(host.value!); resize(); ready = true; rebuild()
     let last = 0
     const animate = (time: number) => {
-      if (disposed) return
+      if (disposed || !ready) return
       frame = requestAnimationFrame(animate)
       if (document.hidden) { last = time; return }
       controls.autoRotate = props.rotate; controls.update(Math.min((time - last) / 1000, .1)); last = time
@@ -175,12 +183,12 @@ onMounted(() => {
       renderer.render(scene, camera)
     }
     frame = requestAnimationFrame(animate)
-  } catch { renderError.value = '当前浏览器无法启用 WebGL，请开启硬件加速后重试。' }
+  } catch { ready = false; renderError.value = '当前浏览器无法启用 WebGL，请开启硬件加速后重试。' }
 })
 watch(() => [props.nodes, props.links], rebuild)
 watch(() => [props.selected, props.labels, props.linkLabels, props.flow], updateFocus)
 onBeforeUnmount(() => {
-  disposed = true; cancelAnimationFrame(frame); observer?.disconnect(); controls?.dispose(); disposeGroup(content)
+  disposed = true; ready = false; cancelAnimationFrame(frame); observer?.disconnect(); controls?.dispose(); disposeGroup(content)
   if (renderer) {
     renderer.domElement.removeEventListener('pointerdown', pointerDown); renderer.domElement.removeEventListener('pointerup', selectAt)
     renderer.domElement.removeEventListener('webglcontextlost', contextLost); renderer.dispose(); renderer.domElement.remove()
