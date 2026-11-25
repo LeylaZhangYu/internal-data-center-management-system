@@ -1,0 +1,39 @@
+/* Compact child lists, with a clear hierarchy under each room. */
+.id-help { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.datacenter-table :deep(td.el-table__expanded-cell) { padding: 0 20px 16px 48px; background: #f7f9f8; }
+.area-section { padding: 10px 16px 4px; border-left: 2px solid #b7cec4; container-type: inline-size; }
+.area-section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 0 8px; }
+.area-section-heading { display: flex; align-items: center; gap: 8px; color: #527265; }
+.area-section-heading h3 { margin: 0; font-size: 12px; font-weight: 600; }
+.area-section-heading > .el-icon { font-size: 14px; }
+.area-count { min-width: 21px; padding: 0 6px; line-height: 20px; border-radius: 5px; background: #e6eee9; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; }
+.area-section-header .el-button .el-icon { margin-right: 5px; }
+.area-list { list-style: none; margin: 0; padding: 0; background: #fff; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.area-item { display: grid; grid-template-columns: minmax(140px, 200px) 120px minmax(100px, 1fr) 118px; align-items: center; gap: 16px; padding: 10px 16px; min-height: 62px; }
+.area-item + .area-item { border-top: 1px solid #edf1ee; }
+.area-item:hover, .area-item:focus-within { background: #f5f9f6; }
+.area-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.area-symbol { width: 30px; height: 30px; flex-shrink: 0; border: 1px solid #e0e9e3; background: #f0f5f1; color: #638777; border-radius: 7px; display: grid; place-items: center; font-size: 15px; }
+.area-identity > div { min-width: 0; }
+.area-identity strong { display: block; font-size: 13px; color: var(--ink); font-weight: 550; line-height: 1.6; overflow-wrap: anywhere; }
+.area-identity small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.area-dimensions { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+.area-dimensions b { font-size: 13px; color: #425f53; font-weight: 500; font-variant-numeric: tabular-nums; }
+.area-dimensions i { font-style: normal; color: #8aa096; }
+.area-description { margin: 0; color: #5e7268; font-size: 12px; line-height: 1.7; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.area-description.is-empty { color: #7a8881; }
+.area-actions { display: flex; align-items: center; justify-content: flex-end; gap: 4px; }
+.area-actions > span { width: 1px; height: 12px; background: #e1e8e3; }
+.area-actions .el-button { margin: 0; padding: 6px 8px; }
+.area-empty { display: flex; align-items: center; gap: 12px; padding: 17px 16px; border: 1px dashed #d8e3db; border-radius: 8px; }
+.area-empty strong { font-size: 12px; color: #52695c; font-weight: 500; }
+.area-empty p { margin: 3px 0 0; font-size: 11px; color: var(--muted); line-height: 1.7; }
+@container (max-width: 650px) {
+  .area-item { grid-template-columns: minmax(120px, 1fr) 110px 104px; gap: 8px; padding: 10px 12px; }
+  .area-description { grid-row: 2; grid-column: 1 / -1; padding-left: 40px; }
+  .area-actions { grid-column: 3; grid-row: 1; }
+}
+@media (max-width: 760px) {
+  .datacenter-table :deep(td.el-table__expanded-cell) { padding-left: 20px; padding-right: 10px; }
+  .area-section { padding-left: 10px; padding-right: 0; }
+}

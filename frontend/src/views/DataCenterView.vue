@@ -8,22 +8,21 @@
     <el-table class="datacenter-table" :data="datacenters" row-key="id" default-expand-all table-layout="fixed">
       <el-table-column type="expand">
         <template #default="scope">
-          <div class="area-panel">
-            <div class="area-panel-title"><span>{{ scope.row.name }} · 机房ID：{{ scope.row.id }}</span><span>区域列表</span><small>{{ (scope.row.areas || []).length }} 个区域</small></div>
-          <el-table class="area-table" :data="scope.row.areas || []" size="small" table-layout="fixed">
-            <el-table-column prop="id" label="区域ID" width="100" />
-            <el-table-column prop="name" label="区域" width="150" show-overflow-tooltip />
-            <el-table-column prop="row_count" label="行数" width="100" />
-            <el-table-column prop="column_count" label="列数" width="100" />
-            <el-table-column prop="description" label="说明" width="260" show-overflow-tooltip />
-            <el-table-column label="操作" width="180" fixed="right" align="left">
-              <template #default="areaScope">
-                <el-button size="small" @click="openAreaDialog(areaScope.row, scope.row.id)" :disabled="!canEdit">编辑</el-button>
-                <el-button size="small" type="danger" link @click="removeArea(areaScope.row)" :disabled="!canEdit">删除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          </div>
+          <section class="area-section" :aria-label="`${scope.row.name}的区域`">
+            <header class="area-section-header">
+              <div class="area-section-heading"><el-icon><Grid /></el-icon><h3>所属区域</h3><span class="area-count">{{ (scope.row.areas || []).length }}</span></div>
+              <el-button text type="primary" size="small" :disabled="!canEdit" @click="openAreaDialog(undefined, scope.row.id)"><el-icon><Plus /></el-icon><span>添加区域</span></el-button>
+            </header>
+            <ul v-if="scope.row.areas?.length" class="area-list">
+              <li v-for="area in scope.row.areas" :key="area.id" class="area-item">
+                <div class="area-identity"><span class="area-symbol" aria-hidden="true"><el-icon><Grid /></el-icon></span><div><strong>{{ area.name }}</strong><small>区域ID：{{ area.id }}</small></div></div>
+                <div class="area-dimensions" :aria-label="`${area.row_count}行${area.column_count}列`"><span><b>{{ area.row_count }}</b> 行</span><i aria-hidden="true">×</i><span><b>{{ area.column_count }}</b> 列</span></div>
+                <p class="area-description" :class="{ 'is-empty': !area.description }" :title="area.description || undefined">{{ area.description || '暂无说明' }}</p>
+                <div class="area-actions" :aria-label="`${area.name}的操作`"><el-button size="small" text :disabled="!canEdit" :aria-label="`编辑区域${area.name}`" @click="openAreaDialog(area, scope.row.id)">编辑</el-button><span aria-hidden="true"></span><el-button size="small" text type="danger" :disabled="!canEdit" :aria-label="`删除区域${area.name}`" @click="removeArea(area)">删除</el-button></div>
+              </li>
+            </ul>
+            <div v-else class="area-empty"><span class="area-symbol" aria-hidden="true"><el-icon><Grid /></el-icon></span><div><strong>还没有区域</strong><p>为当前机房添加区域，方便组织机柜布局。</p></div></div>
+          </section>
         </template>
       </el-table-column>
       <el-table-column prop="id" label="机房ID" width="100" />
@@ -85,6 +84,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Grid, Plus } from '@element-plus/icons-vue'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 
@@ -179,49 +179,4 @@ const deactivate = async (id: number) => {
 onMounted(load)
 </script>
 
-<style scoped>
-.id-help {
-  margin: 0 0 14px;
-  color: #64748b;
-  font-size: 12px;
-  line-height: 1.6;
-}
-.datacenter-table :deep(.el-table__expanded-cell) {
-  padding: 0 18px 10px 74px;
-  background: #f7faff;
-}
-.area-panel {
-  border-left: 2px solid #a7c5df;
-  padding: 8px 0 0 14px;
-}
-.area-panel-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 6px;
-  color: #294d70;
-  font-size: 12px;
-  font-weight: 600;
-}
-.area-panel-title small {
-  color: #8aa0b5;
-  font-size: 11px;
-  font-weight: 400;
-}
-.area-table {
-  border: 1px solid #dfe9f3;
-  border-radius: 6px;
-  overflow: hidden;
-}
-.area-table :deep(.el-table__header th) {
-  padding: 5px 0;
-  background: #edf5fc !important;
-  color: #58738d;
-}
-.area-table :deep(.el-table__cell) {
-  padding: 5px 0;
-}
-.area-table :deep(.el-table__row:hover > td) {
-  background: #f0f7ff !important;
-}
-</style>
+<style scoped src="../styles/datacenters.css"></style>

@@ -72,7 +72,7 @@
     </el-table>
       </div>
       <el-table class="device-actions-table" :data="rows" table-layout="fixed">
-        <el-table-column label="操作" width="280">
+        <el-table-column label="操作" min-width="140">
           <template #default="scope">
             <el-button size="small" @click="openDialog(scope.row)" :disabled="!canEdit">编辑</el-button>
             <el-button size="small" type="primary" plain @click="openMove(scope.row)" :disabled="!canEdit">移动</el-button>
@@ -306,5 +306,16 @@ onMounted(async () => {
 
 <style scoped>
 .import-help { color: #64748b; font-size: 12px; margin: 0 0 16px; }
-.device-table-layout{display:grid;grid-template-columns:minmax(0,1fr) 280px;align-items:start}.device-info-scroll{min-width:0;overflow-x:auto}.device-table{width:100%}.device-actions-table{width:280px}.device-actions-table :deep(.el-table__cell){white-space:nowrap}.device-actions-table :deep(.el-table__header th),.device-actions-table :deep(.el-table__body td){background:#fff!important}.device-actions-table :deep(.el-table__row:hover>td){background:#f0f7ff!important}.device-table :deep(.el-table__cell){white-space:nowrap}
+.device-table-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
+.device-info-scroll { min-width: 0; overflow-x: auto; }
+.device-table { width: 100%; }
+.device-actions-table { width: 280px; }
+/* Narrow screens keep the information pane usable without overlaying actions. */
+@media (max-width: 700px) {
+  .device-table-layout { grid-template-columns: minmax(0, 1fr) 150px; }
+  .device-actions-table { width: 150px; }
+  .device-actions-table :deep(.el-table__body .cell) { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .device-actions-table :deep(.el-button) { margin: 0; padding: 4px; }
+  .device-table-layout :deep(.el-table__body td.el-table__cell) { height: 72px; }
+}
 </style>

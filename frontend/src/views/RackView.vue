@@ -22,12 +22,12 @@
       <template #footer><el-button @click="importResultVisible = false">关闭</el-button></template>
     </el-dialog>
     <el-table class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
-      <el-table-column prop="code" label="机柜编号" show-overflow-tooltip />
+      <el-table-column prop="code" label="机柜编号" min-width="110" show-overflow-tooltip />
       <el-table-column prop="data_center_id" label="机房名称（ID）" min-width="180" show-overflow-tooltip :formatter="(row) => dataCenterLabel(row.data_center_id)" />
       <el-table-column prop="area_id" label="区域名称（ID）" min-width="160" show-overflow-tooltip :formatter="(row) => areaLabel(row.data_center_id, row.area_id)" />
       <el-table-column prop="row_position" label="行" />
       <el-table-column prop="column_position" label="列" />
-      <el-table-column prop="orientation" label="朝向" show-overflow-tooltip>
+      <el-table-column prop="orientation" label="朝向" min-width="125" show-overflow-tooltip>
           <template #default="scope">{{ orientationLabel(scope.row.orientation) }}</template>
         </el-table-column>
       <el-table-column prop="total_u" label="总U数" />
@@ -255,5 +255,5 @@ onMounted(async () => {
 <style scoped>
 .rack-import-help { font-size: 12px; line-height: 1.6; color: #64748b; margin: 8px 0 16px; }
 .field-help{width:100%;margin-top:4px;color:#64748b;font-size:12px;line-height:1.5}.field-unit{color:#64748b;font-size:12px;white-space:nowrap}
-.rack-table :deep(.el-table__cell){padding:10px 8px;white-space:nowrap}.rack-table :deep(.el-table__header th){background:#f5f8fc!important;color:#475569;font-weight:600}.rack-table :deep(.el-table__fixed-right){box-shadow:-5px 0 10px rgba(15,23,42,.06);background:#fff}.rack-table :deep(.el-table__fixed-right .el-table__cell){background:#fff!important}.rack-table :deep(.el-table__row:hover>td){background:#eff6ff!important}@media(max-width:900px){.rack-table{min-width:980px}}
+.rack-table :deep(.el-table__cell) { white-space: nowrap; }
 </style>
