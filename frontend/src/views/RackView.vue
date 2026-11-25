@@ -8,6 +8,7 @@
       <el-button @click="searchRacks">查询</el-button>
       <el-button @click="resetFilters">重置</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增机柜</el-button>
+      <el-button type="danger" plain :disabled="!canEdit || listLoading || !selectedRows.length" :loading="deleting" @click="deleteSelected">批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}</el-button>
       <el-upload :show-file-list="false" :before-upload="beforeRackUpload" accept=".xlsx" :disabled="!canEdit || importing">
         <el-button :disabled="!canEdit || importing" :loading="importing">Excel 批量导入</el-button>
       </el-upload>
@@ -25,7 +26,9 @@
       </template>
       <template #footer><el-button @click="importResultVisible = false">关闭</el-button></template>
     </el-dialog>
-    <el-table v-loading="listLoading" class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
+    <p v-if="selectedRows.length" class="rack-import-help">已选 {{ selectedRows.length }} 个机柜，仅删除本页勾选项；切换分页或查询条件将清空选择。</p>
+    <el-table ref="tableRef" v-loading="listLoading || deleting" class="rack-table" :data="rows" row-key="id" @selection-change="setSelection" @row-click="onRackRowClick" table-layout="fixed" style="width:100%">
+      <el-table-column type="selection" width="48" :selectable="() => canEdit && !listLoading && !deleting" />
       <el-table-column prop="code" label="机柜编号" min-width="170" show-overflow-tooltip />
       <el-table-column prop="data_center_id" label="机房名称（ID）" min-width="180" show-overflow-tooltip :formatter="(row) => dataCenterLabel(row.data_center_id)" />
       <el-table-column prop="area_id" label="区域名称（ID）" min-width="160" show-overflow-tooltip :formatter="(row) => areaLabel(row.data_center_id, row.area_id)" />
@@ -116,6 +119,7 @@ import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { orientationLabel } from '../utils/labels'
 import { rackPrefix, rackSuffix } from '../utils/rackCode'
+import { useBatchDelete } from '../composables/useBatchDelete'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')
@@ -160,6 +164,7 @@ const loadDatacenters = async () => {
   datacenters.value = data
 }
 const load = async () => {
+  clearSelection()
   listRequest?.abort()
   const controller = new AbortController()
   listRequest = controller
@@ -169,11 +174,20 @@ const load = async () => {
       page: page.value, page_size: pageSize, keyword: keyword.value.trim() || undefined,
       data_center_id: selectedDataCenter.value || undefined,
     } })
-    if (!controller.signal.aborted) { rows.value = data.items; total.value = data.total }
+    if (!controller.signal.aborted) {
+      rows.value = data.items; total.value = data.total
+      const lastPage = Math.max(1, Math.ceil(data.total / pageSize))
+      if (page.value > lastPage) { page.value = lastPage; await load() }
+    }
   } catch (error: any) {
     if (!controller.signal.aborted) { rows.value = []; total.value = 0; ElMessage.error(error?.response?.data?.detail || '机柜列表加载失败') }
   } finally { if (!controller.signal.aborted) listLoading.value = false }
 }
+const { tableRef, selectedRows, deleting, setSelection, clearSelection, deleteSelected } = useBatchDelete({
+  resource: 'racks', canDelete: () => canEdit.value && !listLoading.value, reload: load,
+  onDeleted: (ids) => { if (ids.includes(detail.value?.id)) { detailVisible.value = false; detail.value = null } },
+})
+const onRackRowClick = (row: any, column: any) => { if (column?.type !== 'selection') showDetail(row) }
 const searchRacks = () => { page.value = 1; load() }
 const resetFilters = () => { selectedDataCenter.value = undefined; keyword.value = ''; searchRacks() }
 onBeforeUnmount(() => listRequest?.abort())

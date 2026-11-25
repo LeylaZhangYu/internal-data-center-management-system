@@ -27,6 +27,7 @@
       <el-button @click="searchDevices">查询</el-button>
       <el-button @click="resetFilters">重置</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增设备</el-button>
+      <el-button type="danger" plain :disabled="!canEdit || listLoading || !selectedRows.length" :loading="deleting" @click="deleteSelected">批量删除{{ selectedRows.length ? `（${selectedRows.length}）` : '' }}</el-button>
       <el-upload :show-file-list="false" :before-upload="beforeUpload" accept=".csv,.xlsx" :disabled="!canEdit">
         <el-button :disabled="!canEdit">导入CSV/XLSX</el-button>
       </el-upload>
@@ -44,9 +45,11 @@
     </div>
     <p class="import-help">导入支持中英文表头。必填：设备名称、设备类型；资产编号、型号、IP地址可留空；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
 
-    <div v-loading="listLoading" class="device-table-layout">
+    <p v-if="selectedRows.length" class="import-help">已选 {{ selectedRows.length }} 台设备，仅删除本页勾选项；切换分页或查询条件将清空选择。</p>
+    <div v-loading="listLoading || deleting" class="device-table-layout">
       <div class="device-info-scroll">
-    <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width:1350px">
+    <el-table ref="tableRef" class="device-table" :data="rows" row-key="id" @selection-change="setSelection" table-layout="fixed" style="min-width:1350px">
+      <el-table-column type="selection" width="48" :selectable="() => canEdit && !listLoading && !deleting" />
       <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip>
         <template #default="scope">{{ scope.row.asset_number || '-' }}</template>
       </el-table-column>
@@ -167,6 +170,7 @@ import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { deviceStatusLabel, deviceTypeLabel } from '../utils/labels'
 import { deviceCodePreview } from '../utils/deviceCode'
+import { useBatchDelete } from '../composables/useBatchDelete'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')
@@ -238,6 +242,7 @@ const loadAux = async () => {
   if ([rackResult, dcResult, adminResult].some(result => result.status === 'rejected')) ElMessage.warning('部分机房、机柜或管理员信息加载失败，请刷新重试')
 }
 const load = async () => {
+  clearSelection()
   listRequest?.abort()
   const controller = new AbortController()
   listRequest = controller
@@ -256,6 +261,10 @@ const load = async () => {
     if (!controller.signal.aborted) { rows.value = []; total.value = 0; ElMessage.error(error?.response?.data?.detail || '设备列表加载失败') }
   } finally { if (!controller.signal.aborted) listLoading.value = false }
 }
+const { tableRef, selectedRows, deleting, setSelection, clearSelection, deleteSelected } = useBatchDelete({
+  resource: 'devices', canDelete: () => canEdit.value && !listLoading.value, reload: load,
+  onDeleted: (ids) => { if (ids.includes(currentDetail.value?.id)) { detailVisible.value = false; currentDetail.value = null } },
+})
 const searchDevices = () => { page.value = 1; load() }
 const resetFilters = () => {
   Object.assign(filters, { keyword: '', device_type: '', status: '', data_center_id: undefined })
@@ -354,6 +363,7 @@ onMounted(async () => {
 .device-table-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
 .device-info-scroll { min-width: 0; overflow-x: auto; }
 .device-table { width: 100%; }
+.device-table :deep(.el-checkbox) { height: 24px; }
 .device-actions-table { width: 280px; }
 /* Narrow screens keep the information pane usable without overlaying actions. */
 @media (max-width: 700px) {

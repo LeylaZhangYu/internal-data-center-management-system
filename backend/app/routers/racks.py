@@ -7,9 +7,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import require_roles
-from app.models.models import Device, DevicePort, NetworkLink, Rack, User
-from app.schemas.common import MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate, RackImportResult
+from app.models.models import Rack, User
+from app.schemas.common import BatchDeleteRequest, BatchDeleteResponse, MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate, RackImportResult
 from app.services.audit import log_action
+from app.services.deletion import delete_racks, deletion_targets
 from app.services.rack import build_rack_occupancy, calculate_rack_utilization, rack_values, create_rack_record
 from app.services.rack_import import import_racks, parse_rack_upload, template_response
 
@@ -50,6 +51,19 @@ def import_rack_file(
     current_user: User = Depends(require_roles("admin")),
 ):
     return import_racks(db, parse_rack_upload(file), current_user)
+
+
+@router.post("/batch-delete", response_model=BatchDeleteResponse)
+def batch_delete_racks(
+    payload: BatchDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    racks = deletion_targets(db, Rack, payload.ids, "机柜")
+    device_count = delete_racks(db, racks, current_user)
+    db.commit()
+    return BatchDeleteResponse(message=f"已删除 {len(racks)} 个机柜及 {device_count} 台设备",
+                               deleted_count=len(racks), deleted_device_count=device_count)
 
 
 @router.get("/{rack_id}", response_model=RackDetail)
@@ -127,16 +141,6 @@ def delete_rack(
     rack = db.query(Rack).filter(Rack.id == rack_id).first()
     if not rack:
         raise HTTPException(status_code=404, detail="机柜不存在")
-    devices = db.query(Device).filter(Device.rack_id == rack_id).all()
-    device_ids = [device.id for device in devices]
-    port_ids = [port.id for port in db.query(DevicePort).filter(DevicePort.device_id.in_(device_ids)).all()] if device_ids else []
-    if port_ids:
-        db.query(NetworkLink).filter((NetworkLink.local_port_id.in_(port_ids)) | (NetworkLink.remote_port_id.in_(port_ids))).delete(synchronize_session=False)
-    for device in devices:
-        device.administrators = []
-        db.delete(device)
-    code = rack.code
-    db.delete(rack)
-    log_action(db, user=current_user, action="delete", module="rack", target_type="rack", target_id=str(rack_id), message=f"删除机柜 {code}")
+    delete_racks(db, [rack], current_user)
     db.commit()
     return MessageResponse(message="机柜已删除")

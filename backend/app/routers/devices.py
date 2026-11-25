@@ -9,6 +9,8 @@ from app.core.deps import get_current_user
 from app.core.permissions import require_roles
 from app.models.models import Device, Rack, User
 from app.schemas.common import (
+    BatchDeleteRequest,
+    BatchDeleteResponse,
     DeviceCreate,
     DeviceMoveRequest,
     DeviceRead,
@@ -17,6 +19,7 @@ from app.schemas.common import (
     MessageResponse,
     PagedResponse,
 )
+from app.services.deletion import delete_devices, deletion_targets
 from app.services.device import create_device, move_device, unmount_device, update_device
 from app.services.import_export import import_devices, parse_upload
 from app.services.device_sheet import sheet_response
@@ -68,6 +71,19 @@ def download_template(file_format: str, current_user: User = Depends(get_current
     if file_format not in ("csv", "xlsx"):
         raise HTTPException(status_code=400, detail="仅支持CSV或XLSX文件")
     return sheet_response(file_format, template=True)
+
+
+@router.post("/batch-delete", response_model=BatchDeleteResponse)
+def batch_delete_devices(
+    payload: BatchDeleteRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles("admin")),
+):
+    devices = deletion_targets(db, Device, payload.ids, "设备")
+    delete_devices(db, devices, current_user)
+    db.commit()
+    return BatchDeleteResponse(message=f"已删除 {len(devices)} 台设备",
+                               deleted_count=len(devices), deleted_device_count=len(devices))
 
 
 @router.get("/{device_id}", response_model=DeviceRead)

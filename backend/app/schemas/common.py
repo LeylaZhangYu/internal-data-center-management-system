@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, conint, conlist, validator
 
 from app.models.models import DeviceStatusEnum, DeviceTypeEnum, LinkStatusEnum, RackOrientationEnum, RoleEnum
 
@@ -14,6 +14,15 @@ class ORMModel(BaseModel):
 
 class MessageResponse(ORMModel):
     message: str
+
+
+class BatchDeleteRequest(BaseModel):
+    ids: conlist(conint(strict=True, gt=0), min_items=1, max_items=100)
+
+
+class BatchDeleteResponse(MessageResponse):
+    deleted_count: int
+    deleted_device_count: int
 
 
 class TokenResponse(ORMModel):
