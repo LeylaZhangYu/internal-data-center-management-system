@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 from typing import Iterable, List, Optional
 
@@ -15,6 +16,24 @@ from app.models.models import (
     User,
 )
 from app.services.audit import log_action
+
+
+def normalize_asset_number(value: Optional[str], rack: Optional[Rack], existing: Optional[Device] = None) -> Optional[str]:
+    """Prefix newly assigned asset numbers; keep existing identifiers stable on moves/edits."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if existing is not None and value == existing.asset_number:
+        return value
+    if rack:
+        # A complete number can also be pasted/imported; replace its location prefix once.
+        suffix = re.sub(r"^[0-9]+_[0-9]+_", "", value).strip()
+        if not suffix:
+            raise HTTPException(status_code=400, detail="请填写资产编号末尾部分，或将资产编号留空")
+        value = f"{rack.data_center_id}_{rack.area_id}_{suffix}"
+    if len(value) > 100:
+        raise HTTPException(status_code=400, detail="完整资产编号（含前缀）不能超过100个字符")
+    return value
 
 
 def ensure_unique_device_fields(db: Session, payload, existing_id: Optional[int] = None) -> None:
@@ -109,8 +128,9 @@ def sync_ports(device: Device, ports_payload: List) -> None:
 
 
 def create_device(db: Session, payload, user: User) -> Device:
-    ensure_unique_device_fields(db, payload)
     rack = validate_rack_placement(db, payload.rack_id, payload.start_u, payload.u_height)
+    payload = payload.copy(update={"asset_number": normalize_asset_number(payload.asset_number, rack)})
+    ensure_unique_device_fields(db, payload)
     device = Device(
         asset_number=payload.asset_number,
         name=payload.name,
@@ -164,9 +184,10 @@ def create_device(db: Session, payload, user: User) -> Device:
 
 
 def update_device(db: Session, device: Device, payload, user: User) -> Device:
-    ensure_unique_device_fields(db, payload, existing_id=device.id)
     old_rack_id, old_start_u = device.rack_id, device.start_u
-    validate_rack_placement(db, payload.rack_id, payload.start_u, payload.u_height, device_id=device.id)
+    rack = validate_rack_placement(db, payload.rack_id, payload.start_u, payload.u_height, device_id=device.id)
+    payload = payload.copy(update={"asset_number": normalize_asset_number(payload.asset_number, rack, device)})
+    ensure_unique_device_fields(db, payload, existing_id=device.id)
     for field in [
         "asset_number",
         "name",

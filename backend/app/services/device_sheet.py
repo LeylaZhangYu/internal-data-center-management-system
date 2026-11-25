@@ -68,6 +68,8 @@ def sheet_response(file_format, devices=(), template=False):
             for line in [
                 "请在第一个工作表从第2行开始填写，不要修改表头。模板不包含示例设备。",
                 "必填：设备名称、设备类型。资产编号、型号、IP地址可留空；填写资产编号或IP地址时不能与已有设备重复。",
+                "资产编号填写末尾编号即可，选择机柜后自动保存为机房ID_区域ID_编号，例如1_2_001；已带数字前缀时按目标机柜替换，不重复拼接。",
+                "资产编号可留空；未指定机柜时保留原编号。设备移动、下架或编辑其他字段时保留已有编号。",
                 "设备类型：server / gpu_server / cpu_server / management_node / switch / storage / pdu / firewall / other。",
                 "状态：planned / active / standby / maintenance / retired / off_shelf；留空为planned。",
                 "机柜ID填写系统内已有机柜的数字ID，不是机柜编号。未上架时机柜ID和起始U位留空。",

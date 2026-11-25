@@ -1,6 +1,7 @@
 from typing import Dict, List, Tuple
 
 from fastapi import HTTPException
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from app.models.models import Area, DataCenter, DeviceStatusEnum, Rack
@@ -51,20 +52,49 @@ def auto_layout_coordinates(row_position: int, column_position: int) -> Tuple[fl
     return (max(column_position - 1, 0) * 2.2, max(row_position - 1, 0) * 4.0)
 
 
-def create_rack_record(db: Session, payload, user):
+def rack_code_suffix(code: str, data_center_id: int, area_id: int) -> str:
+    prefix = f"{data_center_id}_{area_id}_"
+    code = code.strip()
+    return code[len(prefix):] if code.startswith(prefix) else code
+
+
+def rack_values(db: Session, payload, existing=None):
     dc = db.query(DataCenter).filter(DataCenter.id == payload.data_center_id).first()
-    if not dc or not dc.is_active:
-        raise HTTPException(status_code=400, detail="机房不存在或已停用")
+    if not dc:
+        raise HTTPException(status_code=400, detail="机房不存在")
     area = db.query(Area).filter(Area.id == payload.area_id).first()
     if not area or area.data_center_id != dc.id:
         raise HTTPException(status_code=400, detail="区域不存在或不属于指定机房")
-    if not area.is_active:
-        raise HTTPException(status_code=400, detail="区域已停用")
-    if db.query(Rack).filter(Rack.data_center_id == dc.id, Rack.code == payload.code).first():
-        raise HTTPException(status_code=409, detail="该机房内机柜编号已存在（含其他区域或停用机柜）")
+    # Existing racks in disabled locations can still be edited without relocation.
+    same_location = existing is not None and existing.data_center_id == dc.id and existing.area_id == area.id
+    if not same_location and (not dc.is_active or not area.is_active):
+        raise HTTPException(status_code=400, detail="机房不存在或已停用" if not dc.is_active else "区域已停用")
+    raw_code = payload.code.strip()
+    if existing is not None and raw_code == existing.code:
+        suffix = rack_code_suffix(raw_code, existing.data_center_id, existing.area_id)
+    else:
+        suffix = rack_code_suffix(raw_code, dc.id, area.id)
+    suffix = suffix.strip()
+    code = f"{dc.id}_{area.id}_{suffix}"
+    if not suffix:
+        raise HTTPException(status_code=400, detail="请填写机柜编号末尾部分")
+    if len(code) > 50:
+        raise HTTPException(status_code=400, detail="完整机柜编号（含机房、区域前缀）不能超过50个字符")
+    # Check legacy unprefixed codes in the same area, and canonical codes room-wide.
+    query = db.query(Rack).filter(Rack.data_center_id == dc.id).filter(
+        or_(Rack.code == code, and_(Rack.area_id == area.id, Rack.code == suffix)))
+    if existing is not None:
+        query = query.filter(Rack.id != existing.id)
+    if query.first():
+        raise HTTPException(status_code=409, detail="该区域内机柜编号已存在（含停用机柜）")
     values = payload.dict()
+    values["code"] = code
     values["x_position"], values["y_position"] = auto_layout_coordinates(payload.row_position, payload.column_position)
-    rack = Rack(**values)
+    return values
+
+
+def create_rack_record(db: Session, payload, user):
+    rack = Rack(**rack_values(db, payload))
     db.add(rack)
     db.flush()
     log_action(db, user=user, action="create", module="rack", target_type="rack",

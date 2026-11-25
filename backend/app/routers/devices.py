@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.core.permissions import require_roles
-from app.models.models import Device, User
+from app.models.models import Device, Rack, User
 from app.schemas.common import (
     DeviceCreate,
     DeviceMoveRequest,
@@ -38,6 +38,7 @@ def list_devices(
     device_type: Optional[str] = None,
     status: Optional[str] = None,
     rack_id: Optional[int] = None,
+    data_center_id: Optional[int] = Query(None, ge=1),
 ):
     query = db.query(Device)
     if keyword:
@@ -48,6 +49,8 @@ def list_devices(
         query = query.filter(Device.status == status)
     if rack_id:
         query = query.filter(Device.rack_id == rack_id)
+    if data_center_id is not None:
+        query = query.join(Rack, Device.rack_id == Rack.id).filter(Rack.data_center_id == data_center_id)
     total = query.count()
     items = serialize_device_query(query).order_by(Device.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return PagedResponse(items=items, total=total, page=page, page_size=page_size)

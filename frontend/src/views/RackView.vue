@@ -1,8 +1,12 @@
 <template>
   <div class="page-card">
     <div class="toolbar">
-      <el-input v-model="keyword" placeholder="搜索机柜编号/备注" style="width:240px" @keyup.enter="load" />
-      <el-button @click="load">查询</el-button>
+      <el-select v-model="selectedDataCenter" clearable filterable placeholder="全部机房" aria-label="按机房筛选" style="width:240px" @change="searchRacks">
+        <el-option v-for="dc in datacenters" :key="dc.id" :label="`${dc.name}（${dc.id}）`" :value="dc.id" />
+      </el-select>
+      <el-input v-model="keyword" placeholder="搜索机柜编号/备注" style="width:240px" @keyup.enter="searchRacks" />
+      <el-button @click="searchRacks">查询</el-button>
+      <el-button @click="resetFilters">重置</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增机柜</el-button>
       <el-upload :show-file-list="false" :before-upload="beforeRackUpload" accept=".xlsx" :disabled="!canEdit || importing">
         <el-button :disabled="!canEdit || importing" :loading="importing">Excel 批量导入</el-button>
@@ -21,8 +25,8 @@
       </template>
       <template #footer><el-button @click="importResultVisible = false">关闭</el-button></template>
     </el-dialog>
-    <el-table class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
-      <el-table-column prop="code" label="机柜编号" min-width="110" show-overflow-tooltip />
+    <el-table v-loading="listLoading" class="rack-table" :data="rows" @row-click="showDetail" table-layout="fixed" style="width:100%">
+      <el-table-column prop="code" label="机柜编号" min-width="170" show-overflow-tooltip />
       <el-table-column prop="data_center_id" label="机房名称（ID）" min-width="180" show-overflow-tooltip :formatter="(row) => dataCenterLabel(row.data_center_id)" />
       <el-table-column prop="area_id" label="区域名称（ID）" min-width="160" show-overflow-tooltip :formatter="(row) => areaLabel(row.data_center_id, row.area_id)" />
       <el-table-column prop="row_position" label="行" />
@@ -51,10 +55,15 @@
     </div>
 
     <el-dialog v-model="visible" :title="form.id ? '编辑机柜' : '新增机柜'" width="640px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="所属机房" required><el-select v-model="form.data_center_id" style="width:100%"><el-option v-for="item in datacenters" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="所属区域" required><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
-        <el-form-item label="机柜编号" required><el-input v-model="form.code" /></el-form-item>
+      <el-form ref="rackFormRef" :model="form" :rules="rackFormRules" label-width="100px">
+        <el-form-item label="所属机房" prop="data_center_id" required><el-select v-model="form.data_center_id" style="width:100%" @change="changeFormRoom"><el-option v-for="item in datacenters" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="所属区域" prop="area_id" required><el-select v-model="form.area_id" style="width:100%"><el-option v-for="item in currentAreas" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" /></el-select></el-form-item>
+        <el-form-item label="机柜编号" prop="code" required>
+          <el-input v-model="form.code" placeholder="填写末尾编号，如 001 或 A01" :disabled="!codePrefix">
+            <template v-if="codePrefix" #prepend>{{ codePrefix }}</template>
+          </el-input>
+          <div class="field-help">完整编号：{{ codePreview || '请先选择所属机房和区域' }}。前缀自动生成，无需填写。</div>
+        </el-form-item>
         <el-form-item label="机柜行列">
           <el-space>
             <el-input-number v-model="form.row_position" :min="1" controls-position="right" />
@@ -101,11 +110,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { orientationLabel } from '../utils/labels'
+import { rackPrefix, rackSuffix } from '../utils/rackCode'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')
@@ -114,6 +124,9 @@ const downloadingTemplate = ref(false)
 const importResultVisible = ref(false)
 const importResult = ref<{ total: number; imported: number; failed: number; message: string; errors: { row: number; message: string }[] } | null>(null)
 const keyword = ref('')
+const selectedDataCenter = ref<number | undefined>()
+const listLoading = ref(false)
+let listRequest: AbortController | undefined
 const rows = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
@@ -130,6 +143,16 @@ const areaLabel = (dataCenterId: number, areaId: number) => {
 }
 const form = reactive<any>({})
 const currentAreas = computed(() => datacenters.value.find((item) => item.id === form.data_center_id)?.areas || [])
+const rackFormRef = ref<any>()
+const codePrefix = computed(() => rackPrefix(form.data_center_id, form.area_id))
+const codePreview = computed(() => codePrefix.value ? `${codePrefix.value}${(form.code || '').trim()}` : '')
+const rackFormRules = {
+  data_center_id: [{ required: true, message: '请选择所属机房', trigger: 'change' }],
+  area_id: [{ required: true, message: '请选择所属区域', trigger: 'change' }],
+  code: [{ required: true, whitespace: true, message: '请输入机柜编号末尾部分', trigger: 'blur' }],
+}
+const changeFormRoom = () => { form.area_id = currentAreas.value[0]?.id }
+
 
 const resetForm = () => Object.assign(form, { id: undefined, data_center_id: undefined, area_id: undefined, code: '', row_position: 1, column_position: 1, x_position: 0, y_position: 0, orientation: 'north', total_u: 42, is_active: true, remark: '' })
 const loadDatacenters = async () => {
@@ -137,10 +160,23 @@ const loadDatacenters = async () => {
   datacenters.value = data
 }
 const load = async () => {
-  const { data } = await client.get('/racks', { params: { page: page.value, page_size: pageSize, keyword: keyword.value || undefined } })
-  rows.value = data.items
-  total.value = data.total
+  listRequest?.abort()
+  const controller = new AbortController()
+  listRequest = controller
+  listLoading.value = true
+  try {
+    const { data } = await client.get('/racks', { signal: controller.signal, params: {
+      page: page.value, page_size: pageSize, keyword: keyword.value.trim() || undefined,
+      data_center_id: selectedDataCenter.value || undefined,
+    } })
+    if (!controller.signal.aborted) { rows.value = data.items; total.value = data.total }
+  } catch (error: any) {
+    if (!controller.signal.aborted) { rows.value = []; total.value = 0; ElMessage.error(error?.response?.data?.detail || '机柜列表加载失败') }
+  } finally { if (!controller.signal.aborted) listLoading.value = false }
 }
+const searchRacks = () => { page.value = 1; load() }
+const resetFilters = () => { selectedDataCenter.value = undefined; keyword.value = ''; searchRacks() }
+onBeforeUnmount(() => listRequest?.abort())
 const fileError = async (error: any, fallback: string) => {
   let body = error?.response?.data
   if (body instanceof Blob) {
@@ -185,6 +221,7 @@ const beforeRackUpload = async (file: File) => {
     importResultVisible.value = true
     if (data.imported) {
       keyword.value = ''
+      selectedDataCenter.value = undefined
       page.value = 1
       try { await load() } catch { ElMessage.warning('导入已完成，列表刷新失败，请点击查询；不要重复导入') }
     }
@@ -197,16 +234,20 @@ const beforeRackUpload = async (file: File) => {
 }
 const openDialog = (row?: any) => {
   resetForm()
-  if (row) Object.assign(form, row)
-  else if (datacenters.value[0]) {
-    form.data_center_id = datacenters.value[0].id
-    form.area_id = datacenters.value[0].areas?.[0]?.id
+  if (row) { Object.assign(form, row); form.code = rackSuffix(row.code, row.data_center_id, row.area_id) }
+  else {
+    const dc = dataCentersById.value.get(selectedDataCenter.value) || datacenters.value[0]
+    form.data_center_id = dc?.id
+    form.area_id = dc?.areas?.[0]?.id
   }
   visible.value = true
+  nextTick(() => rackFormRef.value?.clearValidate())
 }
 const save = async () => {
+  if (!await rackFormRef.value?.validate().catch(() => false)) return
+  if (codePreview.value.length > 50) { ElMessage.warning('完整机柜编号不能超过50个字符'); return }
   try {
-    const payload = { ...form, x_position: (Number(form.column_position || 1) - 1) * 2.2, y_position: (Number(form.row_position || 1) - 1) * 4 }
+    const payload = { ...form, code: codePreview.value }
     if (form.id) await client.put(`/racks/${form.id}`, payload)
     else await client.post('/racks', payload)
     ElMessage.success('保存成功')

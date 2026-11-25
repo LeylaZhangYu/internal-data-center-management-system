@@ -48,7 +48,7 @@ def test_template_roundtrip(client, admin_headers):
     assert imported.status_code == 200, imported.text
     assert imported.json()['imported'] == 1
     with TestingSessionLocal() as db:
-        rack = db.query(Rack).filter(Rack.code == '001').one()
+        rack = db.query(Rack).filter(Rack.code == '1_1_001').one()
         assert (rack.row_position, rack.column_position, rack.total_u) == (2, 3, 48)
         assert (rack.x_position, rack.y_position) == (4.4, 4.0)
         assert rack.orientation.value == 'east' and not rack.is_active
@@ -71,7 +71,7 @@ def test_partial_import_and_actual_excel_rows(client, admin_headers):
     with TestingSessionLocal() as db:
         assert db.query(Rack).count() == 4
         assert db.query(Rack).filter(Rack.code == 'A01').one().total_u == 42
-        rack = db.query(Rack).filter(Rack.code == 'NEW1').one()
+        rack = db.query(Rack).filter(Rack.code == '1_1_NEW1').one()
         assert (rack.row_position, rack.column_position, rack.total_u, rack.is_active) == (1, 1, 42, True)
 
 
@@ -131,6 +131,7 @@ def test_single_create_uses_same_rules(client, admin_headers):
     payload = dict(data_center_id=1, area_id=1, code='MANUAL', row_position=2, column_position=3)
     created = client.post('/api/racks', headers=admin_headers, json=payload)
     assert created.status_code == 200, created.text
+    assert created.json()['code'] == '1_1_MANUAL'
     assert created.json()['x_position'] == 4.4
     assert created.json()['y_position'] == 4.0
     assert client.post('/api/racks', headers=admin_headers, json=payload).status_code == 409
@@ -140,7 +141,7 @@ def test_single_create_uses_same_rules(client, admin_headers):
 def test_failed_insert_rolls_back_and_continues(client, admin_headers):
     # Force a DB constraint error after validation; the next row must still succeed.
     def break_insert(mapper, connection, target):
-        if target.code == 'FAIL':
+        if target.code == '1_1_FAIL':
             target.code = 'A01'
     event.listen(Rack, 'before_insert', break_insert)
     try:
@@ -148,6 +149,6 @@ def test_failed_insert_rolls_back_and_continues(client, admin_headers):
         assert result.status_code == 200, result.text
         assert result.json()['failed'] == 1 and result.json()['imported'] == 1
         with TestingSessionLocal() as db:
-            assert db.query(Rack).filter(Rack.code == 'AFTER').count() == 1
+            assert db.query(Rack).filter(Rack.code == '1_1_AFTER').count() == 1
     finally:
         event.remove(Rack, 'before_insert', break_insert)

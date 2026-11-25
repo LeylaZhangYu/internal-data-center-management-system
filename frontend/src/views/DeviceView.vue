@@ -1,8 +1,11 @@
 <template>
   <div class="page-card">
     <div class="toolbar">
-      <el-input v-model="filters.keyword" placeholder="搜索资产编号/名称/IP/型号" style="width:240px" @keyup.enter="load" />
-      <el-select v-model="filters.device_type" clearable placeholder="设备类型" style="width:200px">
+      <el-select v-model="filters.data_center_id" clearable filterable placeholder="全部机房" aria-label="按机房筛选" style="width:220px" @change="searchDevices">
+        <el-option v-for="item in datacenters" :key="item.id" :label="`${item.name}（${item.id}）`" :value="item.id" />
+      </el-select>
+      <el-input v-model="filters.keyword" placeholder="搜索资产编号/名称/IP/型号" style="width:240px" @keyup.enter="searchDevices" />
+      <el-select v-model="filters.device_type" clearable placeholder="设备类型" style="width:200px" @change="searchDevices">
         <el-option label="通用服务器 (server)" value="server" />
         <el-option label="GPU服务器 (gpu_server)" value="gpu_server" />
         <el-option label="CPU服务器 (cpu_server)" value="cpu_server" />
@@ -13,7 +16,7 @@
         <el-option label="防火墙 (firewall)" value="firewall" />
         <el-option label="其他 (other)" value="other" />
       </el-select>
-      <el-select v-model="filters.status" clearable placeholder="状态" style="width:220px">
+      <el-select v-model="filters.status" clearable placeholder="状态" style="width:220px" @change="searchDevices">
         <el-option label="计划中 (planned)" value="planned" />
         <el-option label="运行中 (active)" value="active" />
         <el-option label="待机 (standby)" value="standby" />
@@ -21,7 +24,8 @@
         <el-option label="已退役 (retired)" value="retired" />
         <el-option label="已下架 (off_shelf)" value="off_shelf" />
       </el-select>
-      <el-button @click="load">查询</el-button>
+      <el-button @click="searchDevices">查询</el-button>
+      <el-button @click="resetFilters">重置</el-button>
       <el-button type="primary" @click="openDialog()" :disabled="!canEdit">新增设备</el-button>
       <el-upload :show-file-list="false" :before-upload="beforeUpload" accept=".csv,.xlsx" :disabled="!canEdit">
         <el-button :disabled="!canEdit">导入CSV/XLSX</el-button>
@@ -40,7 +44,7 @@
     </div>
     <p class="import-help">导入支持中英文表头。必填：设备名称、设备类型；资产编号、型号、IP地址可留空；类型和状态使用英文代码，具体见 Excel 模板说明。</p>
 
-    <div class="device-table-layout">
+    <div v-loading="listLoading" class="device-table-layout">
       <div class="device-info-scroll">
     <el-table class="device-table" :data="rows" table-layout="fixed" style="min-width:1350px">
       <el-table-column prop="asset_number" label="资产编号" width="140" show-overflow-tooltip>
@@ -89,7 +93,11 @@
     <el-dialog v-model="visible" :title="form.id ? '编辑设备' : '新增设备'" width="840px">
       <el-form ref="formRef" :model="form" :rules="formRules" label-width="100px">
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="资产编号" prop="asset_number"><el-input v-model="form.asset_number" placeholder="选填" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="资产编号" prop="asset_number">
+            <el-input v-model="form.asset_number" placeholder="选填；新编号只需填写末尾部分，如001" />
+            <p class="asset-code-help">{{ assetCodePreview ? `保存编号：${assetCodePreview}` : '选好机房和机柜后，自动补充机房ID_区域ID_前缀；留空则不生成编号。' }}</p>
+            <p v-if="form.id" class="asset-code-help">修改编号时按所选机柜生成前缀；编辑其他字段或移动设备时保留原编号。</p>
+          </el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备名称" prop="name" required><el-input v-model="form.name" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="机房" prop="data_center_id" required><el-select v-model="form.data_center_id" clearable style="width:100%" @change="onDataCenterChange"><el-option v-for="item in datacenters" :key="item.id" :label="item.name" :value="item.id" /></el-select></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="设备类型" prop="device_type" required><el-select v-model="form.device_type" style="width:100%"><el-option label="通用服务器 (server)" value="server" />
@@ -153,11 +161,12 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import { useAuthStore } from '../stores/auth'
 import { deviceStatusLabel, deviceTypeLabel } from '../utils/labels'
+import { deviceCodePreview } from '../utils/deviceCode'
 
 const auth = useAuthStore()
 const canEdit = computed(() => auth.user?.role === 'admin')
@@ -165,6 +174,8 @@ const rows = ref<any[]>([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = 10
+const listLoading = ref(false)
+let listRequest: AbortController | undefined
 const visible = ref(false)
 const moveVisible = ref(false)
 const detailVisible = ref(false)
@@ -174,8 +185,10 @@ const racks = ref<any[]>([])
 const datacenters = ref<any[]>([])
 const filteredRacks = computed(() => racks.value.filter((rack) => !form.data_center_id || rack.data_center_id === form.data_center_id))
 const administrators = ref<any[]>([])
-const filters = reactive<any>({ keyword: '', device_type: '', status: '' })
+const filters = reactive<any>({ keyword: '', device_type: '', status: '', data_center_id: undefined })
 const form = reactive<any>({})
+const originalAssetNumber = ref<string | null>(null)
+const assetCodePreview = computed(() => deviceCodePreview(form.asset_number, racks.value.find(rack => rack.id === form.rack_id), originalAssetNumber.value))
 const moveForm = reactive<any>({ rack_id: undefined, start_u: 1, comment: '' })
 const portsText = ref('')
 const formRef = ref<any>()
@@ -189,7 +202,7 @@ const formRules = {
   data_center_id: [{ required: true, message: '请选择机房', trigger: 'change' }],
 }
 
-const resetForm = () => Object.assign(form, { id: undefined, data_center_id: undefined, asset_number: '', name: '', device_type: 'server', model: '', serial_number: '', purpose: '', status: 'planned', ip_address: '', rack_id: undefined, start_u: undefined, u_height: 1, cpu: '', memory_gb: undefined, gpu: '', storage_desc: '', operating_system: '', notes: '', administrator_ids: [] })
+const resetForm = () => Object.assign(form, { id: undefined, data_center_id: filters.data_center_id || undefined, asset_number: '', name: '', device_type: 'server', model: '', serial_number: '', purpose: '', status: 'planned', ip_address: '', rack_id: undefined, start_u: undefined, u_height: 1, cpu: '', memory_gb: undefined, gpu: '', storage_desc: '', operating_system: '', notes: '', administrator_ids: [] })
 const parsePorts = () => portsText.value.split(',').map((x) => x.trim()).filter(Boolean).map((name) => ({ name }))
 const dataCenterName = (device: any) => {
   const rack = racks.value.find((item) => item.id === device?.rack_id)
@@ -205,23 +218,53 @@ const formatInstallLocation = (device: any) => {
 const onDataCenterChange = () => {
   if (!filteredRacks.value.some((rack) => rack.id === form.rack_id)) form.rack_id = undefined
 }
+const loadRacks = async () => {
+  const items: any[] = []
+  for (let rackPage = 1; ; rackPage++) {
+    const { data } = await client.get('/racks', { params: { page: rackPage, page_size: 100 } })
+    items.push(...data.items)
+    if (!data.items.length || items.length >= data.total) return items
+  }
+}
 const loadAux = async () => {
   const [rackResult, dcResult, adminResult] = await Promise.allSettled([
-    client.get('/racks', { params: { page: 1, page_size: 100 } }),
+    loadRacks(),
     client.get('/datacenters'),
     client.get('/administrators'),
   ])
-  if (rackResult.status === 'fulfilled') racks.value = rackResult.value.data.items || []
+  if (rackResult.status === 'fulfilled') racks.value = rackResult.value
   if (dcResult.status === 'fulfilled') datacenters.value = dcResult.value.data || []
   if (adminResult.status === 'fulfilled') administrators.value = adminResult.value.data || []
+  if ([rackResult, dcResult, adminResult].some(result => result.status === 'rejected')) ElMessage.warning('部分机房、机柜或管理员信息加载失败，请刷新重试')
 }
 const load = async () => {
-  const { data } = await client.get('/devices', { params: { page: page.value, page_size: pageSize, ...filters } })
-  rows.value = data.items
-  total.value = data.total
+  listRequest?.abort()
+  const controller = new AbortController()
+  listRequest = controller
+  listLoading.value = true
+  try {
+    const { data } = await client.get('/devices', { signal: controller.signal, params: {
+      page: page.value, page_size: pageSize, ...filters, data_center_id: filters.data_center_id || undefined,
+    } })
+    if (!controller.signal.aborted) {
+      rows.value = data.items
+      total.value = data.total
+      const lastPage = Math.max(1, Math.ceil(data.total / pageSize))
+      if (page.value > lastPage) { page.value = lastPage; await load() }
+    }
+  } catch (error: any) {
+    if (!controller.signal.aborted) { rows.value = []; total.value = 0; ElMessage.error(error?.response?.data?.detail || '设备列表加载失败') }
+  } finally { if (!controller.signal.aborted) listLoading.value = false }
 }
+const searchDevices = () => { page.value = 1; load() }
+const resetFilters = () => {
+  Object.assign(filters, { keyword: '', device_type: '', status: '', data_center_id: undefined })
+  searchDevices()
+}
+onBeforeUnmount(() => listRequest?.abort())
 const openDialog = (row?: any) => {
   resetForm()
+  originalAssetNumber.value = row?.asset_number || null
   portsText.value = ''
   if (row) {
     Object.assign(form, row)
@@ -234,6 +277,7 @@ const openDialog = (row?: any) => {
 const save = async () => {
   try {
     await formRef.value?.validate()
+    if (assetCodePreview.value.length > 100) { ElMessage.warning('完整资产编号（含前缀）不能超过100个字符'); return }
     const { data_center_id, ...deviceForm } = form
     const payload = { ...deviceForm, ports: parsePorts() }
     if (form.id) await client.put(`/devices/${form.id}`, payload)
@@ -305,6 +349,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.asset-code-help { color: var(--el-text-color-secondary); font-size: 12px; line-height: 1.6; margin: 5px 0 0; overflow-wrap: anywhere; }
 .import-help { color: #64748b; font-size: 12px; margin: 0 0 16px; }
 .device-table-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
 .device-info-scroll { min-width: 0; overflow-x: auto; }

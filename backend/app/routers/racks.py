@@ -10,7 +10,7 @@ from app.core.permissions import require_roles
 from app.models.models import Device, DevicePort, NetworkLink, Rack, User
 from app.schemas.common import MessageResponse, PagedResponse, RackCreate, RackDetail, RackRead, RackUpdate, RackImportResult
 from app.services.audit import log_action
-from app.services.rack import build_rack_occupancy, calculate_rack_utilization, auto_layout_coordinates, create_rack_record
+from app.services.rack import build_rack_occupancy, calculate_rack_utilization, rack_values, create_rack_record
 from app.services.rack_import import import_racks, parse_rack_upload, template_response
 
 router = APIRouter(prefix="/racks", tags=["racks"])
@@ -79,8 +79,7 @@ def update_rack(
     rack = db.query(Rack).filter(Rack.id == rack_id).first()
     if not rack:
         raise HTTPException(status_code=404, detail="机柜不存在")
-    values = payload.dict()
-    values["x_position"], values["y_position"] = auto_layout_coordinates(values["row_position"], values["column_position"])
+    values = rack_values(db, payload, existing=rack)
     for key, value in values.items():
         setattr(rack, key, value)
     log_action(db, user=current_user, action="update", module="rack", target_type="rack", target_id=str(rack.id), message=f"更新机柜 {rack.code}")
