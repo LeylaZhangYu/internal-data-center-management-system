@@ -158,6 +158,8 @@ onBeforeUnmount(() => { request?.abort(); document.removeEventListener('fullscre
 .detail-closed .facility-body { grid-template-columns: 224px minmax(0, 1fr); }
 .nav-closed.detail-closed .facility-body { grid-template-columns: minmax(0, 1fr); }
 .facility-nav { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #0d192c; overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #314d70 transparent; }
+/* Keep navigation sections in document flow when a long rack list needs scrolling. */
+.facility-nav > * { flex-shrink: 0; }
 .nav-section { padding: 17px 15px; border-bottom: 1px solid var(--line); }
 .section-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
 .section-heading h2, .section-heading h3 { margin: 0; font-size: 12px; font-weight: 500; color: #d5e3f7; }
@@ -166,7 +168,7 @@ onBeforeUnmount(() => { request?.abort(); document.removeEventListener('fullscre
 .facility-nav select, .facility-nav input { box-sizing: border-box; width: 100%; min-width: 0; padding: 9px; background: #091425; border: 1px solid #293f5e; color: #cddff8; border-radius: 6px; font-size: 11px; }
 .facility-nav input::placeholder { color: #6d85a8; }
 .facility-nav option { background: #0e1c31; }
-.inventory { flex: 1; min-height: 130px; }
+.inventory { flex: 1 0 auto; min-height: 130px; }
 .facility-view .rack-entry { display: flex; align-items: center; gap: 11px; width: 100%; padding: 12px 8px; text-align: left; border-color: transparent; background: transparent; margin-bottom: 4px; }
 .facility-view .rack-entry.selected { background: #193351; border-color: #38628e; }
 .rack-icon { display: flex; flex-direction: column; gap: 3px; padding: 6px 4px; border: 1px solid #527da4; border-radius: 3px; }
