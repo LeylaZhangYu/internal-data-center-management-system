@@ -11,12 +11,13 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from sqlalchemy.exc import IntegrityError
 
-from app.models.models import Area, DataCenter
+from app.models.models import Area, DataCenter, RackCategoryEnum
 from app.schemas.common import RackCreate, RackImportResult, RackImportError
 from app.services.rack import create_rack_record
 
 COLUMNS = [
     ("data_center_id", "机房ID"), ("area_id", "区域ID"), ("code", "机柜编号"),
+    ("category", "类别"),
     ("row_position", "行"), ("column_position", "列"), ("orientation", "朝向"),
     ("total_u", "总U数"), ("is_active", "状态"), ("remark", "备注"),
 ]
@@ -33,22 +34,23 @@ def template_response(db):
     ws.title = "机柜导入模板"
     ws.append([label for _, label in COLUMNS])
     ws.freeze_panes = "A2"
-    ws.auto_filter.ref = "A1:I1"
+    ws.auto_filter.ref = f"A1:{get_column_letter(len(COLUMNS))}1"
     # Keep the data sheet empty, but make future rack codes text (e.g. 001).
     for index, cell in enumerate(ws[1], 1):
         cell.font = Font(bold=True, color="FFFFFF")
         cell.fill = PatternFill("solid", fgColor="244768")
-        ws.column_dimensions[get_column_letter(index)].width = 20 if index < 9 else 40
+        ws.column_dimensions[get_column_letter(index)].width = 20 if index < len(COLUMNS) else 40
     ws.column_dimensions["C"].number_format = "@"
     ws.row_dimensions[1].height = 28
-    for col, choices in [("F", '"北向,南向,东向,西向"'), ("H", '"启用,停用"')]:
+    for col, choices in [("D", '"列间空调,列头柜,机柜,配电柜"'),
+                         ("G", '"北向,南向,东向,西向"'), ("I", '"启用,停用"')]:
         validation = DataValidation(type="list", formula1=choices, allow_blank=True)
         validation.errorTitle = "填写错误"
         validation.error = "请选择下拉列表中的值"
         validation.showErrorMessage = True
         ws.add_data_validation(validation)
         validation.add(f"{col}2:{col}{MAX_ROWS + 1}")
-    for col in ("A", "B", "D", "E", "G"):
+    for col in ("A", "B", "E", "F", "H"):
         validation = DataValidation(type="whole", operator="between", formula1=1, formula2=2147483647,
                                     allow_blank=col not in ("A", "B"))
         validation.showErrorMessage = True
@@ -60,6 +62,7 @@ def template_response(db):
     for line in [
         "请在【机柜导入模板】中从第2行开始填写；不要删除表头。此模板没有模拟机柜数据。",
         "必填：机房ID、区域ID、机柜编号。机房和区域必须已存在且已启用，区域必须属于指定机房。",
+        "类别：列间空调、列头柜、机柜、配电柜；留空时默认为机柜。",
         "请从【机房区域参考】查找数字ID，不要填写机房名称或区域名称；参考内容是下载时的快照。",
         "机柜编号填写末尾部分，如001；系统自动生成机房ID_区域ID_001，同一区域内不能重复。001等请按文本填写。",
         "也可填写带当前机房和区域前缀的完整编号，不会重复添加前缀；完整编号最多50个字符。",
@@ -115,7 +118,7 @@ def parse_rack_upload(file: UploadFile):
         wb = load_workbook(io.BytesIO(content), read_only=True, data_only=False, keep_links=False)
         ws = wb["机柜导入模板"] if "机柜导入模板" in wb.sheetnames else wb.worksheets[0]
         if (ws.max_row or 0) > MAX_ROWS + 1 or (ws.max_column or 0) > len(COLUMNS):
-            raise HTTPException(status_code=400, detail="表格最多1000行数据、9列，请按标准模板填写")
+            raise HTTPException(status_code=400, detail=f"表格最多1000行数据、{len(COLUMNS)}列，请按标准模板填写")
         rows = ws.iter_rows()
         header = next(rows, ())
         fields = []
@@ -167,6 +170,16 @@ def normalize_rack_row(row):
     code = "" if _blank(row.get("code")) else str(row["code"]).strip()
     if not code or len(code) > 50:
         raise ValueError("机柜编号必填且不能超过50个字符")
+    category_aliases = {
+        "列间空调": RackCategoryEnum.row_air_conditioner.value,
+        "列头柜": RackCategoryEnum.row_head_cabinet.value,
+        "机柜": RackCategoryEnum.rack.value,
+        "配电柜": RackCategoryEnum.power_distribution_cabinet.value,
+    }
+    category = "机柜" if _blank(row.get("category")) else str(row["category"]).strip()
+    category = category_aliases.get(category, category.lower())
+    if category not in {item.value for item in RackCategoryEnum}:
+        raise ValueError("类别只能填写列间空调、列头柜、机柜、配电柜或对应英文代码")
     orientation = "north" if _blank(row.get("orientation")) else str(row["orientation"]).strip().lower()
     orientation = ORIENTATIONS.get(orientation, orientation)
     if orientation not in ("north", "south", "east", "west"):
@@ -177,6 +190,7 @@ def normalize_rack_row(row):
     return RackCreate(
         data_center_id=_positive_int(row.get("data_center_id"), "机房ID"),
         area_id=_positive_int(row.get("area_id"), "区域ID"), code=code,
+        category=category,
         row_position=_positive_int(row.get("row_position"), "行", 1),
         column_position=_positive_int(row.get("column_position"), "列", 1),
         total_u=_positive_int(row.get("total_u"), "总U数", 42),

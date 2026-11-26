@@ -1,4 +1,4 @@
-from app.models.models import DataCenter, Device, DevicePort, NetworkLink
+from app.models.models import DataCenter, Device, DevicePort, NetworkLink, Rack
 from conftest import TestingSessionLocal
 
 
@@ -30,6 +30,18 @@ def test_layout_count_and_capacity_exclude_off_shelf_devices(client, admin_heade
     # Network topology intentionally keeps off-shelf and isolated nodes.
     network = client.get('/api/visualization/network', headers=admin_headers).json()
     assert len(network['nodes']) == 3
+
+
+def test_layout_passes_rack_categories_through_for_3d_rendering(client, admin_headers):
+    with TestingSessionLocal() as db:
+        rack = db.get(Rack, 1)
+        rack.category = 'row_air_conditioner'
+        db.get(Rack, 2).category = 'power_distribution_cabinet'
+        db.commit()
+    result = client.get('/api/visualization/layout', headers=admin_headers)
+    assert result.status_code == 200, result.text
+    categories = {rack['id']: rack['category'] for rack in result.json()[0]['areas'][0]['racks']}
+    assert categories == {1: 'row_air_conditioner', 2: 'power_distribution_cabinet'}
 
 
 def test_legacy_dangling_links_do_not_break_either_scene(client, admin_headers):

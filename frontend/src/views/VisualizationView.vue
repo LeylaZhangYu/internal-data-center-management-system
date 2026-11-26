@@ -17,7 +17,7 @@
         <section class="nav-section inventory">
           <div class="section-heading"><h2>机柜列表</h2><span>{{ matchingRacks.length }} RACKS</span></div>
           <button v-for="rack in matchingRacks" :key="rack.id" class="rack-entry" :class="{ selected: selectedRackId === rack.id }" @click="selectRack(rack.id)">
-            <span class="rack-icon" aria-hidden="true"><i></i><i></i><i></i></span><span class="rack-entry-copy"><strong>{{ rack.code }}<small>{{ rack.utilization_rate }}%</small></strong><span>{{ rack.areaName }} · {{ rack.device_count }} 台设备</span><span class="mini-meter"><i :style="{ width: meterWidth(rack.utilization_rate), background: utilizationColor(rack.utilization_rate) }"></i></span></span>
+            <span class="rack-icon" :class="`category-${rack.category || 'rack'}`" aria-hidden="true"><i></i><i></i><i></i></span><span class="rack-entry-copy"><strong>{{ rack.code }}<small>{{ rack.utilization_rate }}%</small></strong><span>{{ rackCategoryLabel(rack.category) }} · {{ rack.areaName }} · {{ rack.device_count }} 台设备</span><span class="mini-meter"><i :style="{ width: meterWidth(rack.utilization_rate), background: utilizationColor(rack.utilization_rate) }"></i></span></span>
           </button>
           <p v-if="!matchingRacks.length" class="muted-text">{{ search ? '没有找到匹配的机柜或设备。' : '该范围暂无机柜。' }}</p>
         </section>
@@ -39,7 +39,7 @@
       <aside v-show="inspectorOpen" class="facility-inspector" aria-label="机柜及设备详情">
         <div class="inspector-top"><span class="eyebrow">RACK INSPECTOR</span><span class="inspector-tag">{{ selectedRack ? '已选机柜' : '空间概览' }}</span></div>
         <template v-if="selectedRack">
-          <div class="selected-rack-title"><h2>{{ selectedRack.code }}</h2><button @click="focusSelected">聚焦 ↗</button></div><p class="rack-location">{{ selectedDc?.name }} / {{ selectedRack.areaName }}</p>
+          <div class="selected-rack-title"><h2>{{ selectedRack.code }}</h2><button @click="focusSelected">聚焦 ↗</button></div><p class="rack-location">{{ rackCategoryLabel(selectedRack.category) }} · {{ selectedDc?.name }} / {{ selectedRack.areaName }}</p>
           <div class="rack-capacity"><div><span>U 位利用率</span><strong :style="{ color: utilizationColor(selectedRack.utilization_rate) }">{{ selectedRack.utilization_rate }}<small>%</small></strong></div><div class="capacity-meter"><i :style="{ width: meterWidth(selectedRack.utilization_rate), background: utilizationColor(selectedRack.utilization_rate) }"></i></div><p>{{ selectedRack.device_count }} 台设备<span>{{ selectedRack.total_u }} U · {{ orientationLabel(selectedRack.orientation) }}</span></p></div>
           <div class="section-heading device-list-heading"><h3>已上架设备</h3><span>{{ selectedRack.devices.length }}</span></div>
           <div class="inspector-devices">
@@ -67,7 +67,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import client from '../api/client'
 import RackScene from '../components/rack-scene/RackScene.vue'
-import { areaColors, statusColors, isMounted, type DataCenterLayout } from '../components/rack-scene/layout'
+import { areaColors, statusColors, isMounted, rackCategoryStyle, type DataCenterLayout } from '../components/rack-scene/layout'
 import { deviceStatusLabel, orientationLabel } from '../utils/labels'
 
 const layoutData = ref<DataCenterLayout[]>([])
@@ -91,6 +91,7 @@ const capacityRate = computed(() => totalU.value ? Math.round(occupiedU.value / 
 const deviceCount = computed(() => visibleRacks.value.reduce((sum, rack) => sum + rack.device_count, 0))
 const meterWidth = (rate: number) => `${Math.min(100, Math.max(0, rate))}%`
 const utilizationColor = (rate: number) => rate >= 85 ? '#ffbd78' : rate >= 60 ? '#7dbbff' : '#67dbc4'
+const rackCategoryLabel = (category?: string) => rackCategoryStyle(category).label
 function selectRack(id: number) { selectedRackId.value = id; selectedDeviceId.value = null; inspectorOpen.value = true }
 function selectFromScene(rackId: number | null, deviceId: number | null) { selectedRackId.value = rackId; selectedDeviceId.value = deviceId; if (rackId !== null) inspectorOpen.value = true }
 function focusSelected() { rotate.value = false; scene.value?.focusRack() }
@@ -173,6 +174,9 @@ onBeforeUnmount(() => { request?.abort(); document.removeEventListener('fullscre
 .facility-view .rack-entry.selected { background: #193351; border-color: #38628e; }
 .rack-icon { display: flex; flex-direction: column; gap: 3px; padding: 6px 4px; border: 1px solid #527da4; border-radius: 3px; }
 .rack-icon i { display: block; width: 12px; height: 3px; background: #426a91; border-right: 2px solid #80b8de; }
+.rack-icon.category-row_air_conditioner { border-color: #54c9dc; }.rack-icon.category-row_air_conditioner i { background: #285b6c; border-color: #7de0e4; }
+.rack-icon.category-row_head_cabinet { border-color: #6cb7ff; }.rack-icon.category-row_head_cabinet i { background: #254f75; border-color: #81c5ff; }
+.rack-icon.category-power_distribution_cabinet { border-color: #e7aa58; }.rack-icon.category-power_distribution_cabinet i { background: #654a2b; border-color: #efc36b; }
 .rack-entry-copy { flex: 1; min-width: 0; }
 .rack-entry-copy strong { display: flex; align-items: center; justify-content: space-between; color: #d6e7fc; font-size: 12px; font-weight: 500; overflow-wrap: anywhere; gap: 4px; }
 .rack-entry-copy strong small { color: #79afce; font-size: 10px; }

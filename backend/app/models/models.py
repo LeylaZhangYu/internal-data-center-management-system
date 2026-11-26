@@ -52,6 +52,13 @@ class RackOrientationEnum(str, enum.Enum):
     west = "west"
 
 
+class RackCategoryEnum(str, enum.Enum):
+    row_air_conditioner = "row_air_conditioner"
+    row_head_cabinet = "row_head_cabinet"
+    rack = "rack"
+    power_distribution_cabinet = "power_distribution_cabinet"
+
+
 class LinkStatusEnum(str, enum.Enum):
     up = "up"
     down = "down"
@@ -127,6 +134,8 @@ class Rack(TimestampMixin, Base):
     data_center_id = Column(Integer, ForeignKey("data_centers.id"), nullable=False)
     area_id = Column(Integer, ForeignKey("areas.id"), nullable=False)
     code = Column(String(50), nullable=False)
+    category = Column(String(32), nullable=False, default=RackCategoryEnum.rack.value,
+                      server_default=RackCategoryEnum.rack.value)
     row_position = Column(Integer, default=1, nullable=False)
     column_position = Column(Integer, default=1, nullable=False)
     x_position = Column(Float, default=0.0, nullable=False)

@@ -44,6 +44,7 @@ def get_layout(db: Session = Depends(get_db), current_user: User = Depends(get_c
                 VisualizationRack(
                     id=rack.id,
                     code=rack.code,
+                    category=rack.category,
                     x_position=rack.x_position,
                     y_position=rack.y_position,
                     orientation=rack.orientation.value,

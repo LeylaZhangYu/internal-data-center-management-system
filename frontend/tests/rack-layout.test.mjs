@@ -5,7 +5,7 @@ import ts from 'typescript'
 
 const source = await readFile(new URL('../src/components/rack-scene/layout.ts', import.meta.url), 'utf8')
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ES2020, target: ts.ScriptTarget.ES2020 } }).outputText
-const { placeAreas, devicePlacement, rackHeight, unitHeight, isMounted, areaColors } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
+const { placeAreas, devicePlacement, rackHeight, unitHeight, isMounted, areaColors, rackCategoryStyle } = await import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`)
 
 test('areas with identical local origins are separated and keep relative rack spacing', () => {
   const areas = [
@@ -47,4 +47,12 @@ test('empty areas do not shift scene colors away from the area legend', () => {
     { id: 2, name: 'populated', racks: [{ x_position: 0, y_position: 0 }] },
   ])
   assert.equal(placement.color, areaColors[1])
+})
+
+test('only non-standard cabinet categories receive specialized 3D appearance', () => {
+  assert.deepEqual(rackCategoryStyle('rack'), { kind: 'rack', label: '机柜', accent: '#6888a5' })
+  assert.deepEqual(rackCategoryStyle(undefined), rackCategoryStyle('rack'))
+  assert.equal(rackCategoryStyle('row_air_conditioner').kind, 'air-conditioner')
+  assert.equal(rackCategoryStyle('row_head_cabinet').kind, 'head-cabinet')
+  assert.equal(rackCategoryStyle('power_distribution_cabinet').kind, 'power-cabinet')
 })

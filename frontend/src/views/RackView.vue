@@ -4,6 +4,9 @@
       <el-select v-model="selectedDataCenter" clearable filterable placeholder="全部机房" aria-label="按机房筛选" style="width:240px" @change="searchRacks">
         <el-option v-for="dc in datacenters" :key="dc.id" :label="`${dc.name}（${dc.id}）`" :value="dc.id" />
       </el-select>
+      <el-select v-model="selectedCategory" clearable placeholder="全部类别" aria-label="按机柜类别筛选" style="width:200px" @change="searchRacks">
+        <el-option v-for="item in rackCategories" :key="item.value" :label="item.label" :value="item.value" />
+      </el-select>
       <el-input v-model="keyword" placeholder="搜索机柜编号/备注" style="width:240px" @keyup.enter="searchRacks" />
       <el-button @click="searchRacks">查询</el-button>
       <el-button @click="resetFilters">重置</el-button>
@@ -14,7 +17,7 @@
       </el-upload>
       <el-button @click="downloadRackTemplate" :loading="downloadingTemplate">下载导入模板</el-button>
     </div>
-    <p class="rack-import-help">请先下载模板；机房ID、区域ID、机柜编号必填。模板内含机房区域参考，坐标自动生成。仅支持 .xlsx（最多1000条、5MB）。</p>
+    <p class="rack-import-help">请先下载模板；机房ID、区域ID、机柜编号必填。类别可选列间空调、列头柜、机柜、配电柜，留空默认为机柜。坐标自动生成。仅支持 .xlsx（最多1000条、5MB）。</p>
     <el-dialog v-model="importResultVisible" title="机柜导入结果" width="640px">
       <template v-if="importResult">
         <el-alert :title="importResult.message" :type="importResult.failed ? 'warning' : 'success'" :closable="false" />
@@ -30,6 +33,9 @@
     <el-table ref="tableRef" v-loading="listLoading || deleting" class="rack-table" :data="rows" row-key="id" @selection-change="setSelection" @row-click="onRackRowClick" table-layout="fixed" style="width:100%">
       <el-table-column type="selection" width="48" :selectable="() => canEdit && !listLoading && !deleting" />
       <el-table-column prop="code" label="机柜编号" min-width="170" show-overflow-tooltip />
+      <el-table-column label="类别" min-width="130" show-overflow-tooltip>
+        <template #default="scope">{{ rackCategoryLabel(scope.row.category) }}</template>
+      </el-table-column>
       <el-table-column prop="data_center_id" label="机房名称（ID）" min-width="180" show-overflow-tooltip :formatter="(row) => dataCenterLabel(row.data_center_id)" />
       <el-table-column prop="area_id" label="区域名称（ID）" min-width="160" show-overflow-tooltip :formatter="(row) => areaLabel(row.data_center_id, row.area_id)" />
       <el-table-column prop="row_position" label="行" />
@@ -67,6 +73,11 @@
           </el-input>
           <div class="field-help">完整编号：{{ codePreview || '请先选择所属机房和区域' }}。前缀自动生成，无需填写。</div>
         </el-form-item>
+        <el-form-item label="类别" prop="category" required>
+          <el-select v-model="form.category" style="width:100%">
+            <el-option v-for="item in rackCategories" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="机柜行列">
           <el-space>
             <el-input-number v-model="form.row_position" :min="1" controls-position="right" />
@@ -93,6 +104,7 @@
           <el-descriptions-item label="所属机房">{{ dataCenterLabel(detail.data_center_id) }}</el-descriptions-item>
           <el-descriptions-item label="所属区域">{{ areaLabel(detail.data_center_id, detail.area_id) }}</el-descriptions-item>
           <el-descriptions-item label="机柜编号">{{ detail.code }}</el-descriptions-item>
+          <el-descriptions-item label="类别">{{ rackCategoryLabel(detail.category) }}</el-descriptions-item>
           <el-descriptions-item label="设备数">{{ detail.device_count }}</el-descriptions-item>
           <el-descriptions-item label="已占用U">{{ detail.utilization.occupied_u }}</el-descriptions-item>
           <el-descriptions-item label="剩余U">{{ detail.utilization.remaining_u }}</el-descriptions-item>
@@ -129,6 +141,14 @@ const importResultVisible = ref(false)
 const importResult = ref<{ total: number; imported: number; failed: number; message: string; errors: { row: number; message: string }[] } | null>(null)
 const keyword = ref('')
 const selectedDataCenter = ref<number | undefined>()
+const selectedCategory = ref<string | undefined>()
+const rackCategories = [
+  { value: 'row_air_conditioner', label: '列间空调 (row_air_conditioner)' },
+  { value: 'row_head_cabinet', label: '列头柜 (row_head_cabinet)' },
+  { value: 'rack', label: '机柜 (rack)' },
+  { value: 'power_distribution_cabinet', label: '配电柜 (power_distribution_cabinet)' },
+]
+const rackCategoryLabel = (value?: string) => rackCategories.find(item => item.value === value)?.label || rackCategories[2].label
 const listLoading = ref(false)
 let listRequest: AbortController | undefined
 const rows = ref<any[]>([])
@@ -158,7 +178,7 @@ const rackFormRules = {
 const changeFormRoom = () => { form.area_id = currentAreas.value[0]?.id }
 
 
-const resetForm = () => Object.assign(form, { id: undefined, data_center_id: undefined, area_id: undefined, code: '', row_position: 1, column_position: 1, x_position: 0, y_position: 0, orientation: 'north', total_u: 42, is_active: true, remark: '' })
+const resetForm = () => Object.assign(form, { id: undefined, data_center_id: undefined, area_id: undefined, code: '', category: 'rack', row_position: 1, column_position: 1, x_position: 0, y_position: 0, orientation: 'north', total_u: 42, is_active: true, remark: '' })
 const loadDatacenters = async () => {
   const { data } = await client.get('/datacenters')
   datacenters.value = data
@@ -173,6 +193,7 @@ const load = async () => {
     const { data } = await client.get('/racks', { signal: controller.signal, params: {
       page: page.value, page_size: pageSize, keyword: keyword.value.trim() || undefined,
       data_center_id: selectedDataCenter.value || undefined,
+      category: selectedCategory.value || undefined,
     } })
     if (!controller.signal.aborted) {
       rows.value = data.items; total.value = data.total
@@ -189,7 +210,7 @@ const { tableRef, selectedRows, deleting, setSelection, clearSelection, deleteSe
 })
 const onRackRowClick = (row: any, column: any) => { if (column?.type !== 'selection') showDetail(row) }
 const searchRacks = () => { page.value = 1; load() }
-const resetFilters = () => { selectedDataCenter.value = undefined; keyword.value = ''; searchRacks() }
+const resetFilters = () => { selectedDataCenter.value = undefined; selectedCategory.value = undefined; keyword.value = ''; searchRacks() }
 onBeforeUnmount(() => listRequest?.abort())
 const fileError = async (error: any, fallback: string) => {
   let body = error?.response?.data
@@ -236,6 +257,7 @@ const beforeRackUpload = async (file: File) => {
     if (data.imported) {
       keyword.value = ''
       selectedDataCenter.value = undefined
+      selectedCategory.value = undefined
       page.value = 1
       try { await load() } catch { ElMessage.warning('导入已完成，列表刷新失败，请点击查询；不要重复导入') }
     }

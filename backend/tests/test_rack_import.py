@@ -38,9 +38,9 @@ def test_template_roundtrip(client, admin_headers):
     assert list(next(ws.values)) == HEADERS
     assert ws.max_row == 1
     assert ws.freeze_panes == 'A2'
-    assert len(ws.data_validations.dataValidation) == 7
+    assert len(ws.data_validations.dataValidation) == 8
     assert list(wb['机房区域参考'].values)[1][:4] == (1, '测试机房', 1, 'A区')
-    ws.append([1, 1, '001', 2, 3, '东向', 48, '停用', '测试备注'])
+    ws.append([1, 1, '001', '配电柜', 2, 3, '东向', 48, '停用', '测试备注'])
     stream = io.BytesIO()
     wb.save(stream)
     wb.close()
@@ -52,17 +52,18 @@ def test_template_roundtrip(client, admin_headers):
         assert (rack.row_position, rack.column_position, rack.total_u) == (2, 3, 48)
         assert (rack.x_position, rack.y_position) == (4.4, 4.0)
         assert rack.orientation.value == 'east' and not rack.is_active
+        assert rack.category == 'power_distribution_cabinet'
         assert db.query(AuditLog).filter(AuditLog.target_id == str(rack.id), AuditLog.module == 'rack').count() == 1
 
 
 def test_partial_import_and_actual_excel_rows(client, admin_headers):
     response = upload(client, admin_headers, [
         [1, 1, 'A01'],  # existing
-        [None] * 9,    # skip blank row, preserve subsequent row numbers
+        [None] * len(COLUMNS),  # skip blank row, preserve subsequent row numbers
         [1, 1, 'NEW1'],
         [1, 1, 'NEW1'],
         [1, 1, 'BAD', 1.5],
-        [1, 1, 'NEW2', None, None, 'west', 42, 'true'],
+        [1, 1, 'NEW2', None, None, None, 'west', 42, 'true'],
     ])
     assert response.status_code == 200, response.text
     result = response.json()
@@ -73,6 +74,7 @@ def test_partial_import_and_actual_excel_rows(client, admin_headers):
         assert db.query(Rack).filter(Rack.code == 'A01').one().total_u == 42
         rack = db.query(Rack).filter(Rack.code == '1_1_NEW1').one()
         assert (rack.row_position, rack.column_position, rack.total_u, rack.is_active) == (1, 1, 42, True)
+        assert rack.category == 'rack'
 
 
 def test_associations_and_disabled_parents(client, admin_headers):
@@ -136,6 +138,53 @@ def test_single_create_uses_same_rules(client, admin_headers):
     assert created.json()['y_position'] == 4.0
     assert client.post('/api/racks', headers=admin_headers, json=payload).status_code == 409
     assert client.post('/api/racks', headers=admin_headers, json=dict(payload, code='BAD', area_id=999)).status_code == 400
+
+
+@pytest.mark.parametrize('category', [
+    'row_air_conditioner', 'row_head_cabinet', 'rack', 'power_distribution_cabinet',
+])
+def test_create_category_and_filter(client, admin_headers, category):
+    created = client.post('/api/racks', headers=admin_headers,
+                          json=dict(data_center_id=1, area_id=1, code=f'CAT-{category}', category=category))
+    assert created.status_code == 200, created.text
+    assert created.json()['category'] == category
+    result = client.get('/api/racks', headers=admin_headers, params={'data_center_id': 1, 'category': category})
+    assert result.status_code == 200, result.text
+    assert result.json()['total'] >= 1
+    assert all(item['category'] == category for item in result.json()['items'])
+    assert created.json()['id'] in {item['id'] for item in result.json()['items']}
+
+
+def test_invalid_category_is_rejected(client, admin_headers):
+    response = client.post('/api/racks', headers=admin_headers,
+                           json=dict(data_center_id=1, area_id=1, code='INVALID-CAT', category='other'))
+    assert response.status_code == 422, response.text
+
+
+def test_old_import_headers_still_default_to_rack(client, admin_headers):
+    old_headers = ['data_center_id', 'area_id', 'code', 'row_position', 'column_position',
+                   'orientation', 'total_u', 'is_active', 'remark']
+    response = upload(client, admin_headers, [[1, 1, 'OLD-SHEET', 1, 1, 'north', 42, True, '旧模板']], headers=old_headers)
+    assert response.status_code == 200, response.text
+    assert response.json()['imported'] == 1
+    with TestingSessionLocal() as db:
+        assert db.query(Rack).filter_by(code='1_1_OLD-SHEET').one().category == 'rack'
+
+
+def test_existing_rack_category_migration_is_idempotent(tmp_path):
+    from sqlalchemy import create_engine, inspect, text
+    from app.core.schema_updates import ensure_rack_category
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'old-racks.db'}")
+    with engine.begin() as connection:
+        connection.execute(text('CREATE TABLE racks (id INTEGER PRIMARY KEY, code VARCHAR(50) NOT NULL)'))
+        connection.execute(text("INSERT INTO racks (id, code) VALUES (1, 'legacy')"))
+    ensure_rack_category(engine)
+    ensure_rack_category(engine)
+    assert any(column['name'] == 'category' and not column['nullable'] for column in inspect(engine).get_columns('racks'))
+    with engine.connect() as connection:
+        assert connection.execute(text('SELECT category FROM racks WHERE id=1')).scalar_one() == 'rack'
+    engine.dispose()
 
 
 def test_failed_insert_rolls_back_and_continues(client, admin_headers):

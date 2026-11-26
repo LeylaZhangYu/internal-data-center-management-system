@@ -13,6 +13,7 @@ export interface RackDevice {
 export interface RackLayout {
   id: number
   code: string
+  category?: string
   x_position: number
   y_position: number
   orientation: string
@@ -24,6 +25,14 @@ export interface RackLayout {
 export interface AreaLayout { id: number; name: string; racks: RackLayout[] }
 export interface DataCenterLayout { id: number; name: string; areas: AreaLayout[] }
 export const areaColors = ['#64adff', '#4dd5c0', '#ae99ff', '#e7b778', '#7fcddd']
+export const rackCategoryStyle = (category?: string) => {
+  switch (category) {
+    case 'row_air_conditioner': return { kind: 'air-conditioner', label: '列间空调', accent: '#54c9dc' }
+    case 'row_head_cabinet': return { kind: 'head-cabinet', label: '列头柜', accent: '#6cb7ff' }
+    case 'power_distribution_cabinet': return { kind: 'power-cabinet', label: '配电柜', accent: '#e7aa58' }
+    default: return { kind: 'rack', label: '机柜', accent: '#6888a5' }
+  }
+}
 export const statusColors: Record<string, string> = {
   active: '#4edbb5', standby: '#69b2ff', maintenance: '#ffbc69', planned: '#af98ff', retired: '#8391a9', off_shelf: '#8391a9',
 }

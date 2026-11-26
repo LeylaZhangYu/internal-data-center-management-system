@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, conint, conlist, validator
 
-from app.models.models import DeviceStatusEnum, DeviceTypeEnum, LinkStatusEnum, RackOrientationEnum, RoleEnum
+from app.models.models import DeviceStatusEnum, DeviceTypeEnum, LinkStatusEnum, RackCategoryEnum, RackOrientationEnum, RoleEnum
 
 
 class ORMModel(BaseModel):
@@ -97,6 +97,7 @@ class RackBase(BaseModel):
     data_center_id: int
     area_id: int
     code: str
+    category: RackCategoryEnum = RackCategoryEnum.rack
     row_position: int = 1
     column_position: int = 1
     x_position: float = 0
@@ -323,6 +324,7 @@ class VisualizationDevice(ORMModel):
 class VisualizationRack(ORMModel):
     id: int
     code: str
+    category: RackCategoryEnum = RackCategoryEnum.rack
     x_position: float
     y_position: float
     orientation: str

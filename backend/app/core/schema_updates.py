@@ -9,6 +9,16 @@ from sqlalchemy import inspect, text
 OPTIONAL_DEVICE_COLUMNS = ("asset_number", "model", "ip_address")
 
 
+def ensure_rack_category(engine):
+    """Add rack classification without rebuilding tables or changing existing rows."""
+    columns = {column["name"] for column in inspect(engine).get_columns("racks")}
+    if "category" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE racks ADD COLUMN category VARCHAR(32) NOT NULL DEFAULT 'rack'"
+            ))
+
+
 def ensure_optional_device_fields(engine):
     columns = {column["name"]: column for column in inspect(engine).get_columns("devices")}
     required = [name for name in OPTIONAL_DEVICE_COLUMNS if not columns[name]["nullable"]]

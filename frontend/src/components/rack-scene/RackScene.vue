@@ -8,7 +8,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { placeAreas, rackHeight, devicePlacement, isMounted, unitHeight, statusColors, type AreaLayout } from './layout'
+import { placeAreas, rackHeight, devicePlacement, isMounted, unitHeight, statusColors, rackCategoryStyle, type AreaLayout } from './layout'
 
 const props = defineProps<{ areas: AreaLayout[]; selectedRack: number | null; selectedDevice: number | null; labels: boolean; grid: boolean; transparent: boolean; rotate: boolean }>()
 const emit = defineEmits<{ (event: 'select', rackId: number | null, deviceId: number | null): void }>()
@@ -71,6 +71,38 @@ function rebuild() {
       for (const x of [-.7, .7]) for (const z of [-.65, .65]) { const rail = box(.055, height, .055, '#36536e'); rail.position.set(x, height / 2, z); group.add(rail) }
       for (const y of [.08, height - .08]) { const cap = box(1.48, .16, 1.38, '#1b334d'); cap.position.y = y; group.add(cap) }
       const strip = box(1.2, .026, .035, color, true); strip.position.set(0, height - .15, -.71); group.add(strip)
+      const categoryStyle = rackCategoryStyle(rack.category)
+      if (categoryStyle.kind === 'air-conditioner') {
+        for (const x of [-.38, 0, .38]) {
+          const fan = new THREE.Mesh(new THREE.CylinderGeometry(.19, .19, .035, 20), new THREE.MeshStandardMaterial({ color: '#183b50', metalness: .35, roughness: .4 }))
+          fan.rotation.x = Math.PI / 2; fan.position.set(x, height - .48, -.735); group.add(fan)
+          const hub = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, .045, 12), new THREE.MeshBasicMaterial({ color: categoryStyle.accent }))
+          hub.rotation.x = Math.PI / 2; hub.position.set(x, height - .48, -.76); group.add(hub)
+        }
+        for (let y = .42; y < height - .85; y += .28) {
+          const vent = box(1.02, .025, .025, '#3f8195', true); vent.position.set(0, y, -.73); group.add(vent)
+        }
+        const display = box(.3, .12, .025, '#79e0de', true); display.position.set(0, height - .82, -.735); group.add(display)
+      } else if (categoryStyle.kind === 'head-cabinet') {
+        const panel = box(1.18, .17, .04, '#173c5b'); panel.position.set(0, height - .34, -.735); group.add(panel)
+        const statusScreen = box(.3, .08, .018, '#58aee8', true); statusScreen.position.set(-.34, height - .34, -.765); group.add(statusScreen)
+        for (let row = 0; row < 5; row++) for (let column = 0; column < 6; column++) {
+          const x = -.48 + column * .19, y = height - .68 - row * .2
+          if (y < .28) continue
+          const port = box(.115, .095, .04, '#14283d'); port.position.set(x, y, -.735); group.add(port)
+          const led = box(.025, .025, .012, column % 3 === 0 ? '#57d8b1' : '#6aa7ca', true); led.position.set(x + .032, y, -.764); group.add(led)
+        }
+      } else if (categoryStyle.kind === 'power-cabinet') {
+        const warning = box(1.12, .14, .04, '#704a25'); warning.position.set(0, height - .35, -.735); group.add(warning)
+        const warningMark = box(.28, .035, .018, '#f0bd56', true); warningMark.position.set(0, height - .35, -.765); group.add(warningMark)
+        for (let row = 0; row < 7; row++) for (let column = 0; column < 2; column++) {
+          const x = column === 0 ? -.3 : .3, y = height - .68 - row * .48
+          if (y < .34) continue
+          const breaker = box(.42, .34, .09, '#3b4650'); breaker.position.set(x, y, -.735); group.add(breaker)
+          const switchHandle = box(.16, .1, .055, row % 2 === 0 ? '#e1a64d' : '#a7624e', true); switchHandle.position.set(x, y - .035, -.805); group.add(switchHandle)
+          const indicator = box(.045, .035, .018, row % 2 === 0 ? '#73d3a2' : '#df705e', true); indicator.position.set(x + .13, y + .1, -.812); group.add(indicator)
+        }
+      }
       // Physical U scale: an individual 1U server keeps its correct height, even in a tall rack.
       for (let u = 0; u <= rack.total_u; u++) { const tick = box(u % 5 === 0 ? .1 : .05, .008, .015, '#728ba8', true); tick.position.set(-.64, .22 + u * unitHeight, -.715); group.add(tick) }
       rack.devices.filter(isMounted).forEach(device => {

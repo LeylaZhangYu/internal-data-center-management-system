@@ -26,6 +26,7 @@ def list_racks(
     keyword: Optional[str] = None,
     data_center_id: Optional[int] = None,
     area_id: Optional[int] = None,
+    category: Optional[str] = None,
 ):
     query = db.query(Rack)
     if keyword:
@@ -34,6 +35,8 @@ def list_racks(
         query = query.filter(Rack.data_center_id == data_center_id)
     if area_id:
         query = query.filter(Rack.area_id == area_id)
+    if category:
+        query = query.filter(Rack.category == category)
     total = query.count()
     items = query.order_by(Rack.id.desc()).offset((page - 1) * page_size).limit(page_size).all()
     return PagedResponse(items=items, total=total, page=page, page_size=page_size)
